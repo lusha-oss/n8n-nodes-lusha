@@ -1,0 +1,132 @@
+{
+  "name": "Lusha Node Test Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "firstName",
+              "value": "Satya"
+            },
+            {
+              "name": "lastName",
+              "value": "Nadella"
+            },
+            {
+              "name": "companyName",
+              "value": "Microsoft"
+            }
+          ]
+        }
+      },
+      "id": "set-test-data",
+      "name": "Set Test Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "enrich",
+        "firstName": "={{$json[\"firstName\"]}}",
+        "lastName": "={{$json[\"lastName\"]}}",
+        "companyName": "={{$json[\"companyName\"]}}"
+      },
+      "id": "lusha-contact",
+      "name": "Lusha Contact Enrichment",
+      "type": "n8n-nodes-lusha.lusha",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "lushaApi": {
+          "id": "1",
+          "name": "Lusha API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "company",
+        "operation": "enrich",
+        "domain": "microsoft.com"
+      },
+      "id": "lusha-company",
+      "name": "Lusha Company Enrichment",
+      "type": "n8n-nodes-lusha.lusha",
+      "typeVersion": 1,
+      "position": [650, 500],
+      "credentials": {
+        "lushaApi": {
+          "id": "1",
+          "name": "Lusha API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "prospecting",
+        "operation": "searchContacts",
+        "page": 0,
+        "size": 10
+      },
+      "id": "lusha-search",
+      "name": "Lusha Prospecting Search",
+      "type": "n8n-nodes-lusha.lusha",
+      "typeVersion": 1,
+      "position": [650, 100],
+      "credentials": {
+        "lushaApi": {
+          "id": "1",
+          "name": "Lusha API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Test Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Lusha Prospecting Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Lusha Company Enrichment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Test Data": {
+      "main": [
+        [
+          {
+            "node": "Lusha Contact Enrichment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "lusha-test-workflow"
+}
