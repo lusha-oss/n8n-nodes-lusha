@@ -36,6 +36,7 @@ jobs:
     permissions:
       contents: read
       packages: write  # needed for npm publish
+      id-token: write
 
     steps:
       - name: Checkout repository
