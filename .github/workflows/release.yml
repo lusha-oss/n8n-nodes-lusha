@@ -5,7 +5,8 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: read  # default, principle of least privilege
+  contents: read 
+  id-token: write
 
 jobs:
   build:
