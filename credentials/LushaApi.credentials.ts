@@ -1,4 +1,4 @@
-import {
+ximport {
     IAuthenticateGeneric,
     ICredentialTestRequest,
     ICredentialType,
@@ -40,7 +40,7 @@ export class LushaApi implements ICredentialType {
             url: '/v2/person',  // or any lightweight endpoint
             method: 'GET',
             qs: {
-                email: 'carolina.portela@lusha.com'  // Add a dummy parameter that won't consume credits
+                email: 'yoni@lusha.com'  // Add a dummy parameter that won't consume credits
             },
         },
     };
