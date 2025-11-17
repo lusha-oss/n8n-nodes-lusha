@@ -16,7 +16,7 @@ export class Lusha implements INodeType {
 		group: ['input'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-		description: 'Lusha API integration for contact and company enrichment',
+		description: 'Lusha API integration for contact and company enrichment with prospecting',
 		defaults: {
 			name: 'Lusha',
 		},
@@ -28,6 +28,8 @@ export class Lusha implements INodeType {
 				required: true,
 			},
 		],
+		// Enable AI Agent usage
+		usableAsTool: true,
 		properties: [
 			{
 				displayName: 'Resource',
@@ -43,14 +45,12 @@ export class Lusha implements INodeType {
 						name: 'Company',
 						value: 'company',
 					},
-					{
-						name: 'Prospecting',
-						value: 'prospecting',
-					},
 				],
 				default: 'contact',
 				description: 'The resource to operate on',
 			},
+
+			// ===================== CONTACT OPERATIONS =====================
 			{
 				displayName: 'Operation',
 				name: 'operation',
@@ -64,780 +64,1646 @@ export class Lusha implements INodeType {
 				options: [
 					{
 						name: 'Enrich Single',
-						value: 'enrich',
-						description: 'Enrich a single contact',
+						value: 'enrichSingle',
+						action: 'Enrich a single contact',
+						description: 'Enrich a single contact with additional information',
 					},
 					{
 						name: 'Enrich Bulk',
 						value: 'enrichBulk',
-						description: 'Enrich multiple contacts (up to 100)',
+						action: 'Enrich contacts in bulk',
+						description: 'Enrich multiple contacts with additional information',
 					},
-				],
-				default: 'enrich',
-			},
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['company'],
-					},
-				},
-				options: [
-					{
-						name: 'Enrich Single',
-						value: 'enrich',
-						description: 'Enrich a single company',
-					},
-					{
-						name: 'Enrich Bulk',
-						value: 'enrichBulk',
-						description: 'Enrich multiple companies (up to 100)',
-					},
-				],
-				default: 'enrich',
-			},
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['prospecting'],
-					},
-				},
-				options: [
 					{
 						name: 'Search Contacts',
 						value: 'searchContacts',
-						description: 'Search for contacts with filters',
+						action: 'Search for contacts',
+						description: 'Search and discover new contacts based on criteria',
 					},
 					{
-						name: 'Enrich Contacts',
-						value: 'enrichContacts',
-						description: 'Enrich contacts from search results',
-					},
-					{
-						name: 'Search Companies',
-						value: 'searchCompanies',
-						description: 'Search for companies with filters',
-					},
-					{
-						name: 'Enrich Companies',
-						value: 'enrichCompanies',
-						description: 'Enrich companies from search results',
+						name: 'Enrich from Search',
+						value: 'enrichFromSearch',
+						action: 'Enrich contacts from search results',
+						description: 'Enrich contacts found through a previous search',
 					},
 				],
-				default: 'searchContacts',
+				default: 'enrichSingle',
 			},
-			// Single Contact Enrichment Fields
+
+			// ===== CONTACT ENRICH SINGLE FIELDS =====
 			{
 				displayName: 'Search By',
 				name: 'searchBy',
 				type: 'options',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['enrich'],
-					},
-				},
 				options: [
 					{
 						name: 'Name and Company',
-						value: 'nameCompany',
-						description: 'Search using name and company information',
+						value: 'nameAndCompany',
 					},
 					{
 						name: 'Email',
 						value: 'email',
-						description: 'Search using email address',
 					},
 					{
 						name: 'LinkedIn URL',
-						value: 'linkedin',
-						description: 'Search using LinkedIn profile URL',
+						value: 'linkedinUrl',
 					},
 				],
-				default: 'nameCompany',
-				description: 'How to search for the contact',
+				default: 'nameAndCompany',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichSingle'],
+					},
+				},
 			},
 			{
 				displayName: 'First Name',
 				name: 'firstName',
 				type: 'string',
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['enrich'],
-						searchBy: ['nameCompany'],
+						operation: ['enrichSingle'],
+						searchBy: ['nameAndCompany'],
 					},
 				},
-				default: '',
-				description: 'First name of the contact',
 			},
 			{
 				displayName: 'Last Name',
 				name: 'lastName',
 				type: 'string',
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['enrich'],
-						searchBy: ['nameCompany'],
+						operation: ['enrichSingle'],
+						searchBy: ['nameAndCompany'],
 					},
 				},
-				default: '',
-				description: 'Last name of the contact',
 			},
 			{
 				displayName: 'Company Name',
 				name: 'companyName',
 				type: 'string',
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['enrich'],
-						searchBy: ['nameCompany'],
+						operation: ['enrichSingle'],
+						searchBy: ['nameAndCompany'],
 					},
 				},
-				default: '',
-				description: 'Company name where the contact works',
+				description: 'Company name (e.g., Lusha)',
 			},
 			{
 				displayName: 'Company Domain',
 				name: 'companyDomain',
 				type: 'string',
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['enrich'],
-						searchBy: ['nameCompany'],
+						operation: ['enrichSingle'],
+						searchBy: ['nameAndCompany'],
 					},
 				},
-				default: '',
-				placeholder: 'example.com',
-				description: 'Company domain (e.g., example.com)',
+				description: 'Company domain (e.g., lusha.com)',
 			},
 			{
 				displayName: 'Email',
 				name: 'email',
 				type: 'string',
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['enrich'],
+						operation: ['enrichSingle'],
 						searchBy: ['email'],
 					},
 				},
-				default: '',
-				placeholder: 'john.doe@example.com',
-				description: 'Email address of the contact',
 			},
 			{
 				displayName: 'LinkedIn URL',
 				name: 'linkedinUrl',
 				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['enrich'],
-						searchBy: ['linkedin'],
-					},
-				},
 				default: '',
-				placeholder: 'https://www.linkedin.com/in/johndoe',
-				description: 'LinkedIn profile URL',
-			},
-			// Filter options for Single Contact
-			{
-				displayName: 'Filter By',
-				name: 'filterBySingle',
-				type: 'options',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['enrich'],
+						operation: ['enrichSingle'],
+						searchBy: ['linkedinUrl'],
 					},
 				},
-				options: [
-					{
-						name: 'All Data',
-						value: '',
-						description: 'Return all available data',
-					},
-					{
-						name: 'Emails Only',
-						value: 'emails',
-						description: 'Return only email addresses',
-					},
-					{
-						name: 'Phones Only',
-						value: 'phones',
-						description: 'Return only phone numbers',
-					},
-				],
-				default: '',
-				description: 'Filter the type of data to return',
-			},
-			// Bulk Contact Enrichment Fields
-			{
-				displayName: 'Contacts JSON',
-				name: 'contactsJson',
-				type: 'json',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['enrichBulk'],
-					},
-				},
-				default: '[\n  {\n    "contactId": "1",\n    "fullName": "John Doe",\n    "companies": [{"name": "Acme Corp", "isCurrent": true}]\n  }\n]',
-				description: 'Array of contact objects to enrich (max 100). Each contact needs a unique contactId and either: LinkedIn URL, full name + company, or email',
 			},
 			{
 				displayName: 'Filter By',
 				name: 'filterBy',
 				type: 'options',
+				options: [
+					{
+						name: 'No Filter',
+						value: '',
+					},
+					{
+						name: 'Email Addresses',
+						value: 'emailAddresses',
+					},
+					{
+						name: 'Phone Numbers',
+						value: 'phoneNumbers',
+					},
+				],
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichSingle'],
+					},
+				},
+				description: 'Filter contacts based on the presence of email addresses or phone numbers',
+			},
+			{
+				displayName: 'Reveal Emails',
+				name: 'revealEmails',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichSingle'],
+					},
+				},
+				description: 'Set to true to retrieve email addresses of the contact',
+			},
+			{
+				displayName: 'Reveal Phones',
+				name: 'revealPhones',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichSingle'],
+					},
+				},
+				description: 'Set to true to retrieve phone numbers of the contact',
+			},
+			{
+				displayName: 'Simplified Output',
+				name: 'contactSimplifiedOutput',
+				type: 'boolean',
+				default: true,
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichSingle'],
+					},
+				},
+				description:
+					'If enabled, returns a flattened, friendly object plus the raw response under "raw". If disabled, returns the raw API response only.',
+			},
+
+			// ===== CONTACT SEARCH FIELDS =====
+			{
+				displayName: 'Job Titles',
+				name: 'jobTitles',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Job titles to search for (comma-separated, e.g., CEO, CTO, Manager)',
+				placeholder: 'CEO, CTO, Manager',
+			},
+			{
+				displayName: 'Departments',
+				name: 'departments',
+				type: 'multiOptions',
+				options: [
+					{ name: 'Business Development', value: 'Business Development' },
+					{ name: 'Consulting', value: 'Consulting' },
+					{ name: 'Customer Service', value: 'Customer Service' },
+					{ name: 'Engineering & Technical', value: 'Engineering & Technical' },
+					{ name: 'Finance', value: 'Finance' },
+					{ name: 'General Management', value: 'General Management' },
+					{ name: 'Health Care & Medical', value: 'Health Care & Medical' },
+					{ name: 'Human Resources', value: 'Human Resources' },
+					{ name: 'Information Technology', value: 'Information Technology' },
+					{ name: 'Legal', value: 'Legal' },
+					{ name: 'Marketing', value: 'Marketing' },
+					{ name: 'Operations', value: 'Operations' },
+					{ name: 'Other', value: 'Other' },
+					{ name: 'Product', value: 'Product' },
+					{ name: 'Research & Analytics', value: 'Research & Analytics' },
+					{ name: 'Sales', value: 'Sales' },
+				],
+				default: [],
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+			},
+			{
+				displayName: 'Seniorities',
+				name: 'seniorities',
+				type: 'multiOptions',
+				options: [
+					{ name: 'Founder', value: 10 },
+					{ name: 'C-Suite', value: 9 },
+					{ name: 'Vice President', value: 8 },
+					{ name: 'Partner', value: 7 },
+					{ name: 'Director', value: 6 },
+					{ name: 'Manager', value: 5 },
+					{ name: 'Senior', value: 4 },
+					{ name: 'Entry', value: 3 },
+					{ name: 'Intern', value: 2 },
+					{ name: 'Other', value: 1 },
+				],
+				default: [],
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+			},
+			{
+				displayName: 'Countries',
+				name: 'countries',
+				type: 'multiOptions',
+				options: [
+					{ name: 'United States', value: 'United States' },
+					{ name: 'India', value: 'India' },
+					{ name: 'United Kingdom', value: 'United Kingdom' },
+					{ name: 'Brazil', value: 'Brazil' },
+					{ name: 'Canada', value: 'Canada' },
+					{ name: 'Australia', value: 'Australia' },
+					{ name: 'France', value: 'France' },
+					{ name: 'Germany', value: 'Germany' },
+					{ name: 'Netherlands', value: 'Netherlands' },
+					{ name: 'Italy', value: 'Italy' },
+					{ name: 'South Africa', value: 'South Africa' },
+					{ name: 'Mexico', value: 'Mexico' },
+					{ name: 'Turkey', value: 'Turkey' },
+					{ name: 'Sweden', value: 'Sweden' },
+					{ name: 'China', value: 'China' },
+					{ name: 'Indonesia', value: 'Indonesia' },
+					{ name: 'Belgium', value: 'Belgium' },
+					{ name: 'Spain', value: 'Spain' },
+					{ name: 'United Arab Emirates', value: 'United Arab Emirates' },
+					{ name: 'Argentina', value: 'Argentina' },
+					{ name: 'Switzerland', value: 'Switzerland' },
+					{ name: 'Singapore', value: 'Singapore' },
+					{ name: 'Saudi Arabia', value: 'Saudi Arabia' },
+					{ name: 'Ireland', value: 'Ireland' },
+					{ name: 'Colombia', value: 'Colombia' },
+					{ name: 'Chile', value: 'Chile' },
+					{ name: 'Malaysia', value: 'Malaysia' },
+					{ name: 'Egypt', value: 'Egypt' },
+					{ name: 'Nigeria', value: 'Nigeria' },
+					{ name: 'Japan', value: 'Japan' },
+					{ name: 'Hong Kong', value: 'Hong Kong' },
+					{ name: 'Finland', value: 'Finland' },
+					{ name: 'Denmark', value: 'Denmark' },
+					{ name: 'Taiwan', value: 'Taiwan' },
+					{ name: 'Bangladesh', value: 'Bangladesh' },
+					{ name: 'Austria', value: 'Austria' },
+					{ name: 'Czech Republic', value: 'Czech Republic' },
+					{ name: 'Peru', value: 'Peru' },
+					{ name: 'Kenya', value: 'Kenya' },
+					{ name: 'Vietnam', value: 'Vietnam' },
+					{ name: 'Poland', value: 'Poland' },
+					{ name: 'Ukraine', value: 'Ukraine' },
+					{ name: 'Thailand', value: 'Thailand' },
+					{ name: 'South Korea', value: 'South Korea' },
+					{ name: 'Iran', value: 'Iran' },
+					{ name: 'Morocco', value: 'Morocco' },
+					{ name: 'Venezuela', value: 'Venezuela' },
+					{ name: 'Hungary', value: 'Hungary' },
+					{ name: 'Sri Lanka', value: 'Sri Lanka' },
+					{ name: 'New Zealand', value: 'New Zealand' },
+					{ name: 'Portugal', value: 'Portugal' },
+				],
+				default: [],
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Filter contacts by country',
+			},
+			{
+				displayName: 'States',
+				name: 'states',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'States to search in (comma-separated)',
+				placeholder: 'California, New York, Texas',
+			},
+			{
+				displayName: 'Cities',
+				name: 'cities',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Cities to search in (comma-separated)',
+				placeholder: 'San Francisco, New York, London',
+			},
+			{
+				displayName: 'Company Names / Domains',
+				name: 'companyDomains',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Company names and/or domains (comma-separated, e.g., "Lusha, lusha.com")',
+				placeholder: 'Lusha, lusha.com, Microsoft, microsoft.com',
+			},
+			{
+				displayName: 'Existing Data Points',
+				name: 'existingDataPoints',
+				type: 'multiOptions',
+				options: [
+					{ name: 'Work Email', value: 'work_email' },
+					{ name: 'Phone', value: 'phone' },
+					{ name: 'Mobile Phone', value: 'mobile_phone' },
+					{ name: 'Direct Phone', value: 'direct_phone' },
+				],
+				default: [],
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Filter contacts that have these data points',
+			},
+			
+			// Company filters for contact search
+			{
+				displayName: 'Company Employee Count Min',
+				name: 'contactSearchCompanyEmployeeMin',
+				type: 'options',
+				options: [
+					{ name: 'No minimum', value: '' },
+					{ name: '1', value: '1' },
+					{ name: '11', value: '11' },
+					{ name: '51', value: '51' },
+					{ name: '201', value: '201' },
+					{ name: '501', value: '501' },
+					{ name: '1001', value: '1001' },
+					{ name: '5001', value: '5001' },
+					{ name: '10001', value: '10001' },
+				],
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Minimum company employee count',
+			},
+			{
+				displayName: 'Company Employee Count Max',
+				name: 'contactSearchCompanyEmployeeMax',
+				type: 'options',
+				options: [
+					{ name: 'No maximum', value: '' },
+					{ name: '10', value: '10' },
+					{ name: '50', value: '50' },
+					{ name: '200', value: '200' },
+					{ name: '500', value: '500' },
+					{ name: '1000', value: '1000' },
+					{ name: '5000', value: '5000' },
+					{ name: '10000', value: '10000' },
+				],
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Maximum company employee count',
+			},
+			{
+				displayName: 'Company Revenue Min',
+				name: 'contactSearchCompanyRevenueMin',
+				type: 'options',
+				options: [
+					{ name: 'No minimum', value: '' },
+					{ name: '$1', value: '1' },
+					{ name: '$1M', value: '1000000' },
+					{ name: '$5M', value: '5000000' },
+					{ name: '$10M', value: '10000000' },
+					{ name: '$50M', value: '50000000' },
+					{ name: '$100M', value: '100000000' },
+					{ name: '$250M', value: '250000000' },
+					{ name: '$500M', value: '500000000' },
+					{ name: '$1B', value: '1000000000' },
+					{ name: '$10B', value: '10000000000' },
+				],
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Filter by minimum company revenue',
+			},
+			{
+				displayName: 'Company Revenue Max',
+				name: 'contactSearchCompanyRevenueMax',
+				type: 'options',
+				options: [
+					{ name: 'No maximum', value: '' },
+					{ name: '$1M', value: '1000000' },
+					{ name: '$5M', value: '5000000' },
+					{ name: '$10M', value: '10000000' },
+					{ name: '$50M', value: '50000000' },
+					{ name: '$100M', value: '100000000' },
+					{ name: '$250M', value: '250000000' },
+					{ name: '$500M', value: '500000000' },
+					{ name: '$1B', value: '1000000000' },
+					{ name: '$10B', value: '10000000000' },
+				],
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Filter by maximum company revenue',
+			},
+			{
+				displayName: 'Company Main Industries',
+				name: 'contactSearchCompanyMainIndustries',
+				type: 'multiOptions',
+				options: [
+					{ name: 'Hospitality', value: '1' },
+					{ name: 'Administrative & Support Services', value: '2' },
+					{ name: 'Construction', value: '3' },
+					{ name: 'Consumer Services', value: '4' },
+					{ name: 'Organizations', value: '5' },
+					{ name: 'Education', value: '6' },
+					{ name: 'Entertainment', value: '7' },
+					{ name: 'Farming, Ranching, Forestry', value: '8' },
+					{ name: 'Finance', value: '9' },
+					{ name: 'Government', value: '10' },
+					{ name: 'Hospitals, Healthcare & Clinics', value: '11' },
+					{ name: 'Manufacturing', value: '12' },
+					{ name: 'Oil, Gas & Mining', value: '13' },
+					{ name: 'Business Services', value: '14' },
+					{ name: 'Real Estate', value: '15' },
+					{ name: 'Retail', value: '16' },
+					{ name: 'Technology, Information & Media', value: '17' },
+					{ name: 'Transportation, Logistics, Supply Chain & Storage', value: '18' },
+					{ name: 'Utilities', value: '19' },
+					{ name: 'Wholesale', value: '20' },
+				],
+				default: [],
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Filter by company main industries',
+			},
+			{
+				displayName: 'Company Sub-Industries',
+				name: 'contactSearchCompanySubIndustries',
+				type: 'multiOptions',
+				options: [
+					// Hospitality
+					{ name: 'Restaurants', value: '2' },
+					{ name: 'Food & Beverage Services', value: '1' },
+					{ name: 'Hotels & Motels', value: '3' },
+					// Administrative & Support Services
+					{ name: 'Administrative & Support Services', value: '4' },
+					{ name: 'Events Services', value: '5' },
+					{ name: 'Facilities Services', value: '6' },
+					{ name: 'Fundraising', value: '7' },
+					{ name: 'Security & Investigations', value: '8' },
+					{ name: 'Staffing & Recruiting', value: '9' },
+					{ name: 'Translation & Localization', value: '10' },
+					{ name: 'Travel Arrangements', value: '11' },
+					{ name: 'Writing & Editing', value: '12' },
+					// Construction
+					{ name: 'Construction', value: '13' },
+					{ name: 'Building Construction', value: '15' },
+					{ name: 'Civil Engineering', value: '16' },
+					// Consumer Services
+					{ name: 'Personal Care Services', value: '17' },
+					{ name: 'Philanthropic Fundraising Services', value: '18' },
+					{ name: 'Repair & Maintenance', value: '19' },
+					// Organizations
+					{ name: 'Political Organizations', value: '20' },
+					{ name: 'Civic & Social Organizations', value: '21' },
+					{ name: 'Religious Institutions', value: '22' },
+					// Education
+					{ name: 'E-Learning Providers', value: '23' },
+					{ name: 'Higher Education', value: '24' },
+					{ name: 'Primary & Secondary Education', value: '25' },
+					{ name: 'Training', value: '26' },
+					{ name: 'Schools', value: '27' },
+					// Entertainment
+					{ name: 'Entertainment Providers', value: '28' },
+					{ name: 'Museums, Historical Sites, & Zoos', value: '29' },
+					{ name: 'Musicians, Artists & Writers', value: '30' },
+					{ name: 'Performing Arts', value: '31' },
+					{ name: 'Sports', value: '32' },
+					{ name: 'Recreational Facilities', value: '33' },
+					{ name: 'Gambling Facilities & Casinos', value: '34' },
+					{ name: 'Wellness & Fitness Services', value: '35' },
+					// Farming
+					{ name: 'Farming, Ranching, Forestry', value: '36' },
+					// Finance
+					{ name: 'Financial Services', value: '37' },
+					{ name: 'Capital Markets', value: '38' },
+					{ name: 'Investment Banking', value: '39' },
+					{ name: 'Investment Management', value: '40' },
+					{ name: 'Venture Capital & Private Equity', value: '41' },
+					{ name: 'Banking', value: '42' },
+					{ name: 'International Trade & Development', value: '43' },
+					{ name: 'Insurance', value: '44' },
+					// Government
+					{ name: 'Government Administration', value: '45' },
+					{ name: 'Administration of Justice', value: '46' },
+					{ name: 'Fire Protection', value: '47' },
+					{ name: 'Law Enforcement', value: '48' },
+					{ name: 'Public Safety', value: '49' },
+					{ name: 'Education Administration Programs', value: '50' },
+					{ name: 'Health & Human Services', value: '51' },
+					{ name: 'Housing & Community Development', value: '52' },
+					{ name: 'Military', value: '53' },
+					{ name: 'International Affairs', value: '54' },
+					{ name: 'Public Policy Offices', value: '55' },
+					{ name: 'Executive Offices', value: '56' },
+					{ name: 'Legislative Offices', value: '57' },
+					{ name: 'Government Relations Services', value: '58' },
+					// Healthcare
+					{ name: 'Hospitals & Healthcare', value: '59' },
+					{ name: 'Community Services', value: '60' },
+					{ name: 'Individual & Family Services', value: '61' },
+					{ name: 'Alternative Medicine', value: '62' },
+					{ name: 'Home Health Care Services', value: '63' },
+					{ name: 'Mental Health Care', value: '64' },
+					{ name: 'Medical Practices', value: '65' },
+					{ name: 'Nursing Homes & Residential Care', value: '66' },
+					// Manufacturing
+					{ name: 'Apparel', value: '67' },
+					{ name: 'Appliances, Electrical, & Electronics', value: '68' },
+					{ name: 'Chemicals & Related Products', value: '69' },
+					{ name: 'Personal Care Products', value: '70' },
+					{ name: 'Pharmaceuticals', value: '71' },
+					{ name: 'Computer Equipment & Electronics', value: '72' },
+					{ name: 'Computer Hardware', value: '73' },
+					{ name: 'Semiconductor & Renewable Energy', value: '74' },
+					{ name: 'Fabricated Metal Products', value: '75' },
+					{ name: 'Food & Beverage', value: '76' },
+					{ name: 'Furniture', value: '77' },
+					{ name: 'Glass, Ceramics, Clay & Concrete', value: '78' },
+					{ name: 'Industrial Machinery & Equipment', value: '79' },
+					{ name: 'Medical Equipment', value: '80' },
+					{ name: 'Paper & Forest Product', value: '81' },
+					{ name: 'Plastics & Rubber Products', value: '82' },
+					{ name: 'Sporting Goods', value: '83' },
+					{ name: 'Textile', value: '84' },
+					{ name: 'Tobacco', value: '85' },
+					{ name: 'Aerospace & Defense', value: '86' },
+					{ name: 'Motor Vehicles', value: '87' },
+					{ name: 'Railroad Equipment', value: '88' },
+					{ name: 'Shipbuilding', value: '89' },
+					// Oil, Gas & Mining
+					{ name: 'Mining', value: '90' },
+					{ name: 'Oil & Gas', value: '91' },
+					// Business Services
+					{ name: 'Accounting & Services', value: '92' },
+					{ name: 'Advertising & Marketing Services', value: '93' },
+					{ name: 'Public Relations & Communications', value: '94' },
+					{ name: 'Market Research Services', value: '95' },
+					{ name: 'Architecture & Planning', value: '96' },
+					{ name: 'Business Consulting & Services', value: '97' },
+					{ name: 'Environmental Services', value: '98' },
+					{ name: 'Human Resources Services', value: '99' },
+					{ name: 'Outsourcing & Offshoring Consulting', value: '100' },
+					{ name: 'Design Services', value: '101' },
+					{ name: 'IT Consulting & IT Services', value: '103' },
+					{ name: 'Law Firms & Legal Services', value: '104' },
+					{ name: 'Photography Services', value: '105' },
+					{ name: 'Biotechnology Research Services', value: '106' },
+					{ name: 'Research Services', value: '107' },
+					{ name: 'Veterinary Services', value: '108' },
+					// Real Estate
+					{ name: 'Real Estate', value: '109' },
+					// Retail
+					{ name: 'Retail Luxury Goods & Jewelry', value: '110' },
+					{ name: 'Food & Beverage Retail', value: '111' },
+					{ name: 'Grocery Retail', value: '112' },
+					{ name: 'Retail Apparel & Fashion', value: '113' },
+					{ name: 'Retail Office Equipment', value: '114' },
+					{ name: 'Retail', value: '115' },
+					// Technology, Information & Media
+					{ name: 'Book & Newspaper Publishing', value: '116' },
+					{ name: 'Broadcast Media Production & Distribution', value: '117' },
+					{ name: 'Movies, Videos & Sound', value: '118' },
+					{ name: 'Telecommunications', value: '119' },
+					{ name: 'Data Infrastructure & Analytics', value: '120' },
+					{ name: 'Blockchain Services', value: '121' },
+					{ name: 'Information Services', value: '122' },
+					{ name: 'Internet Publishing', value: '123' },
+					{ name: 'Internet Shop & Marketplace', value: '124' },
+					{ name: 'Social Networking Platforms', value: '125' },
+					{ name: 'Computer & Mobile Games', value: '126' },
+					{ name: 'Computer Networking Products', value: '127' },
+					{ name: 'Computer & Network Security Services', value: '128' },
+					{ name: 'Software Development', value: '129' },
+					// Transportation
+					{ name: 'Airlines, Airports & Air Services', value: '130' },
+					{ name: 'Freight & Package Transportation', value: '131' },
+					{ name: 'Ground Passenger Transportation', value: '132' },
+					{ name: 'Maritime Transportation', value: '133' },
+					{ name: 'Truck Transportation', value: '134' },
+					{ name: 'Warehousing & Storage', value: '135' },
+					// Utilities
+					{ name: 'Utilities', value: '136' },
+					// Wholesale
+					{ name: 'Wholesale', value: '137' },
+					{ name: 'Wholesale Building Materials', value: '138' },
+					{ name: 'Wholesale Import & Export', value: '139' },
+				],
+				default: [],
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Filter by company sub-industries',
+			},
+			{
+				displayName: 'Company Countries',
+				name: 'contactSearchCompanyCountries',
+				type: 'multiOptions',
+				options: [
+					{ name: 'United States', value: 'United States' },
+					{ name: 'India', value: 'India' },
+					{ name: 'United Kingdom', value: 'United Kingdom' },
+					{ name: 'Brazil', value: 'Brazil' },
+					{ name: 'Canada', value: 'Canada' },
+					{ name: 'Australia', value: 'Australia' },
+					{ name: 'France', value: 'France' },
+					{ name: 'Germany', value: 'Germany' },
+					{ name: 'Netherlands', value: 'Netherlands' },
+					{ name: 'Italy', value: 'Italy' },
+					{ name: 'South Africa', value: 'South Africa' },
+					{ name: 'Mexico', value: 'Mexico' },
+				],
+				default: [],
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Filter contacts by company country',
+			},
+			{
+				displayName: 'Company States',
+				name: 'contactSearchCompanyStates',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Filter contacts by company states (comma-separated)',
+				placeholder: 'California, New York',
+			},
+			{
+				displayName: 'Company Cities',
+				name: 'contactSearchCompanyCities',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['searchContacts'],
+					},
+				},
+				description: 'Filter contacts by company cities (comma-separated)',
+				placeholder: 'San Francisco, New York',
+			},
+
+			// ===== CONTACT ENRICH FROM SEARCH FIELDS =====
+			{
+				displayName: 'Request ID',
+				name: 'requestId',
+				type: 'string',
+				default: '={{ $json.requestId }}',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichFromSearch'],
+					},
+				},
+				description: 'The request ID from a previous search operation (auto-populated if connected to a search node)',
+				hint: 'Connect this node to a Search Contacts node to auto-populate',
+			},
+			{
+				displayName: 'Contact Selection',
+				name: 'contactSelectionType',
+				type: 'options',
+				options: [
+					{
+						name: 'All Contacts',
+						value: 'all',
+						description: 'Enrich all contacts from the search',
+					},
+					{
+						name: 'New Contacts Only',
+						value: 'new',
+						description: 'Enrich only new contacts (not previously revealed)',
+					},
+					{
+						name: 'Specific Contact IDs',
+						value: 'specific',
+						description: 'Enrich specific contact IDs',
+					},
+				],
+				default: 'all',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichFromSearch'],
+					},
+				},
+			},
+			{
+				displayName: 'Contact IDs',
+				name: 'contactIds',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichFromSearch'],
+						contactSelectionType: ['specific'],
+					},
+				},
+				description: 'Comma-separated list of contact IDs to enrich',
+				placeholder: 'contact_123, contact_456',
+			},
+
+			// ===== CONTACT BULK ENRICH FIELDS =====
+			{
+				displayName: 'Bulk Type',
+				name: 'bulkType',
+				type: 'options',
+				options: [
+					{
+						name: 'Simple List',
+						value: 'simple',
+						description: 'Use a simple list of contacts',
+					},
+					{
+						name: 'Advanced JSON',
+						value: 'json',
+						description: 'Use raw JSON for advanced configurations',
+					},
+				],
+				default: 'simple',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
 						operation: ['enrichBulk'],
 					},
 				},
+			},
+			// Bulk metadata fields
+			{
+				displayName: 'Filter By',
+				name: 'bulkFilterBy',
+				type: 'options',
 				options: [
 					{
-						name: 'All Data',
+						name: 'No Filter',
 						value: '',
-						description: 'Return all available data',
 					},
 					{
-						name: 'Emails Only',
-						value: 'emails',
-						description: 'Return only email addresses',
+						name: 'Email Addresses',
+						value: 'emailAddresses',
 					},
 					{
-						name: 'Phones Only',
-						value: 'phones',
-						description: 'Return only phone numbers',
+						name: 'Phone Numbers',
+						value: 'phoneNumbers',
 					},
 				],
 				default: '',
-				description: 'Filter the type of data to return',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichBulk'],
+						bulkType: ['simple'],
+					},
+				},
+				description: 'Filter contacts based on the presence of email addresses or phone numbers',
 			},
-			// Single Company Enrichment Fields
 			{
-				displayName: 'Search By',
-				name: 'companySearchBy',
+				displayName: 'Reveal Emails',
+				name: 'bulkRevealEmails',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichBulk'],
+						bulkType: ['simple'],
+					},
+				},
+				description: 'Set to true to retrieve email addresses of contacts',
+			},
+			{
+				displayName: 'Reveal Phones',
+				name: 'bulkRevealPhones',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichBulk'],
+						bulkType: ['simple'],
+					},
+				},
+				description: 'Set to true to retrieve phone numbers of contacts',
+			},
+			// Simple bulk fields
+			{
+				displayName: 'Contacts',
+				name: 'contactsList',
+				type: 'fixedCollection',
+				typeOptions: {
+					multipleValues: true,
+				},
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichBulk'],
+						bulkType: ['simple'],
+					},
+				},
+				description: 'List of contacts to enrich. Each contact needs at least one identifier: email, LinkedIn URL, or name + company',
+				options: [
+					{
+						name: 'contact',
+						displayName: 'Contact',
+						values: [
+							{
+								displayName: 'Email',
+								name: 'email',
+								type: 'string',
+								default: '',
+								placeholder: 'john.doe@company.com',
+								description: 'Primary identifier - use this OR LinkedIn URL OR Name+Company',
+							},
+							{
+								displayName: 'LinkedIn URL',
+								name: 'linkedinUrl',
+								type: 'string',
+								default: '',
+								placeholder: 'https://linkedin.com/in/johndoe',
+								description: 'Alternative identifier if email not available',
+							},
+							{
+								displayName: 'Full Name',
+								name: 'fullName',
+								type: 'string',
+								default: '',
+								placeholder: 'John Doe',
+								description: 'Full name of the contact (use with Company if no email/LinkedIn)',
+							},
+							{
+								displayName: 'Company Name',
+								name: 'companyName',
+								type: 'string',
+								default: '',
+								placeholder: 'Acme Corp',
+								description: 'Company name (use with First + Last name)',
+							},
+							{
+								displayName: 'Company Domain',
+								name: 'companyDomain',
+								type: 'string',
+								default: '',
+								placeholder: 'acmecorp.com',
+								description: 'Company domain (use with First + Last name)',
+							},
+						],
+					},
+				],
+			},
+			// Advanced JSON field
+			{
+				displayName: 'Contacts Payload (JSON)',
+				name: 'contactsPayloadJson',
+				type: 'string',
+				typeOptions: {
+					rows: 10,
+				},
+				default: '{\n  "contacts": [],\n  "metadata": {}\n}',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichBulk'],
+						bulkType: ['json'],
+					},
+				},
+				description: 'Raw JSON body for POST /v2/person bulk enrichment (contacts + metadata).',
+			},
+
+			// ===================== COMPANY OPERATIONS =====================
+			{
+				displayName: 'Operation',
+				name: 'operation',
 				type: 'options',
+				noDataExpression: true,
 				displayOptions: {
 					show: {
 						resource: ['company'],
-						operation: ['enrich'],
 					},
 				},
 				options: [
 					{
+						name: 'Enrich Single',
+						value: 'enrichSingle',
+						action: 'Enrich a single company',
+						description: 'Enrich a single company with additional information',
+					},
+					{
+						name: 'Enrich Bulk',
+						value: 'enrichBulk',
+						action: 'Enrich companies in bulk',
+						description: 'Enrich multiple companies with additional information',
+					},
+					{
+						name: 'Search Companies',
+						value: 'searchCompanies',
+						action: 'Search for companies',
+						description: 'Search and discover new companies based on criteria',
+					},
+					{
+						name: 'Enrich from Search',
+						value: 'enrichFromSearch',
+						action: 'Enrich companies from search results',
+						description: 'Enrich companies found through a previous search',
+					},
+				],
+				default: 'enrichSingle',
+			},
+
+			// ===== COMPANY ENRICH SINGLE FIELDS =====
+			{
+				displayName: 'Search By',
+				name: 'companySearchBy',
+				type: 'options',
+				options: [
+					{
 						name: 'Domain',
 						value: 'domain',
-						description: 'Search using company domain',
 					},
 					{
 						name: 'Company Name',
 						value: 'name',
-						description: 'Search using company name',
 					},
 				],
 				default: 'domain',
-				description: 'How to search for the company',
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['enrichSingle'],
+					},
+				},
 			},
 			{
 				displayName: 'Domain',
 				name: 'domain',
 				type: 'string',
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['company'],
-						operation: ['enrich'],
+						operation: ['enrichSingle'],
 						companySearchBy: ['domain'],
 					},
 				},
-				default: '',
-				placeholder: 'example.com',
 				description: 'Company domain (e.g., example.com)',
 			},
 			{
 				displayName: 'Company Name',
-				name: 'company',
+				name: 'companyName',
 				type: 'string',
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['company'],
-						operation: ['enrich'],
+						operation: ['enrichSingle'],
 						companySearchBy: ['name'],
 					},
 				},
-				default: '',
-				placeholder: 'Acme Corporation',
-				description: 'Company name',
 			},
-			// Bulk Company Enrichment Fields
 			{
-				displayName: 'Companies JSON',
-				name: 'companiesJson',
-				type: 'json',
+				displayName: 'Simplified Output',
+				name: 'companySimplifiedOutput',
+				type: 'boolean',
+				default: true,
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['enrichSingle'],
+					},
+				},
+				description:
+					'If enabled, returns a flattened, friendly object plus the raw response under "raw". If disabled, returns the raw API response only.',
+			},
+
+			// ===== COMPANY SEARCH FIELDS =====
+			{
+				displayName: 'Company Names / Domains',
+				name: 'searchCompanyDomains',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['searchCompanies'],
+					},
+				},
+				description: 'Company names or domains to search (comma-separated, e.g., "Lusha, lusha.com")',
+				placeholder: 'Lusha, lusha.com, Microsoft, microsoft.com',
+			},
+			{
+				displayName: 'Company Countries',
+				name: 'companyCountries',
+				type: 'multiOptions',
+				options: [
+					{ name: 'United States', value: 'United States' },
+					{ name: 'India', value: 'India' },
+					{ name: 'United Kingdom', value: 'United Kingdom' },
+					{ name: 'Brazil', value: 'Brazil' },
+					{ name: 'Canada', value: 'Canada' },
+					{ name: 'Australia', value: 'Australia' },
+					{ name: 'France', value: 'France' },
+					{ name: 'Germany', value: 'Germany' },
+					{ name: 'Netherlands', value: 'Netherlands' },
+					{ name: 'Italy', value: 'Italy' },
+					{ name: 'South Africa', value: 'South Africa' },
+					{ name: 'Mexico', value: 'Mexico' },
+					{ name: 'Other Countries...', value: '' }, // Add more as needed
+				],
+				default: [],
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['searchCompanies'],
+					},
+				},
+				description: 'Filter by company countries',
+			},
+			{
+				displayName: 'Company States',
+				name: 'companyStates',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['searchCompanies'],
+					},
+				},
+				description: 'Filter by company states (comma-separated)',
+				placeholder: 'California, New York, Texas',
+			},
+			{
+				displayName: 'Company Cities',
+				name: 'companyCities',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['searchCompanies'],
+					},
+				},
+				description: 'Filter by company cities (comma-separated)',
+				placeholder: 'San Francisco, New York, London',
+			},
+			{
+				displayName: 'Employee Count Min',
+				name: 'companyEmployeeMin',
+				type: 'options',
+				options: [
+					{ name: 'No minimum', value: '' },
+					{ name: '1', value: '1' },
+					{ name: '11', value: '11' },
+					{ name: '51', value: '51' },
+					{ name: '201', value: '201' },
+					{ name: '501', value: '501' },
+					{ name: '1001', value: '1001' },
+					{ name: '5001', value: '5001' },
+					{ name: '10001', value: '10001' },
+				],
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['searchCompanies'],
+					},
+				},
+				description: 'Minimum company employee count',
+			},
+			{
+				displayName: 'Employee Count Max',
+				name: 'companyEmployeeMax',
+				type: 'options',
+				options: [
+					{ name: 'No maximum', value: '' },
+					{ name: '10', value: '10' },
+					{ name: '50', value: '50' },
+					{ name: '200', value: '200' },
+					{ name: '500', value: '500' },
+					{ name: '1000', value: '1000' },
+					{ name: '5000', value: '5000' },
+					{ name: '10000', value: '10000' },
+				],
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['searchCompanies'],
+					},
+				},
+				description: 'Maximum company employee count',
+			},
+			{
+				displayName: 'Main Industry',
+				name: 'companyMainIndustryIds',
+				type: 'multiOptions',
+				options: [
+					{ name: 'Hospitality', value: '1' },
+					{ name: 'Administrative & Support Services', value: '2' },
+					{ name: 'Construction', value: '3' },
+					{ name: 'Consumer Services', value: '4' },
+					{ name: 'Organizations', value: '5' },
+					{ name: 'Education', value: '6' },
+					{ name: 'Entertainment', value: '7' },
+					{ name: 'Farming, Ranching, Forestry', value: '8' },
+					{ name: 'Finance', value: '9' },
+					{ name: 'Government', value: '10' },
+					{ name: 'Hospitals, Healthcare & Clinics', value: '11' },
+					{ name: 'Manufacturing', value: '12' },
+					{ name: 'Oil, Gas & Mining', value: '13' },
+					{ name: 'Business Services', value: '14' },
+					{ name: 'Real Estate', value: '15' },
+					{ name: 'Retail', value: '16' },
+					{ name: 'Technology, Information & Media', value: '17' },
+					{ name: 'Transportation, Logistics, Supply Chain & Storage', value: '18' },
+					{ name: 'Utilities', value: '19' },
+					{ name: 'Wholesale', value: '20' },
+				],
+				default: [],
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['searchCompanies'],
+					},
+				},
+				description: 'Filter by main industry',
+			},
+			{
+				displayName: 'Sub-Industries',
+				name: 'companySubIndustryIds',
+				type: 'multiOptions',
+				options: [
+					// Hospitality
+					{ name: 'Restaurants', value: '2' },
+					{ name: 'Food & Beverage Services', value: '1' },
+					{ name: 'Hotels & Motels', value: '3' },
+					// Administrative & Support Services
+					{ name: 'Administrative & Support Services', value: '4' },
+					{ name: 'Events Services', value: '5' },
+					{ name: 'Facilities Services', value: '6' },
+					{ name: 'Fundraising', value: '7' },
+					{ name: 'Security & Investigations', value: '8' },
+					{ name: 'Staffing & Recruiting', value: '9' },
+					{ name: 'Translation & Localization', value: '10' },
+					{ name: 'Travel Arrangements', value: '11' },
+					{ name: 'Writing & Editing', value: '12' },
+					// Construction
+					{ name: 'Construction', value: '13' },
+					{ name: 'Building Construction', value: '15' },
+					{ name: 'Civil Engineering', value: '16' },
+					// Consumer Services
+					{ name: 'Personal Care Services', value: '17' },
+					{ name: 'Philanthropic Fundraising Services', value: '18' },
+					{ name: 'Repair & Maintenance', value: '19' },
+					// Organizations
+					{ name: 'Political Organizations', value: '20' },
+					{ name: 'Civic & Social Organizations', value: '21' },
+					{ name: 'Religious Institutions', value: '22' },
+					// Education
+					{ name: 'E-Learning Providers', value: '23' },
+					{ name: 'Higher Education', value: '24' },
+					{ name: 'Primary & Secondary Education', value: '25' },
+					{ name: 'Training', value: '26' },
+					{ name: 'Schools', value: '27' },
+					// Entertainment
+					{ name: 'Entertainment Providers', value: '28' },
+					{ name: 'Museums, Historical Sites, & Zoos', value: '29' },
+					{ name: 'Musicians, Artists & Writers', value: '30' },
+					{ name: 'Performing Arts', value: '31' },
+					{ name: 'Sports', value: '32' },
+					{ name: 'Recreational Facilities', value: '33' },
+					{ name: 'Gambling Facilities & Casinos', value: '34' },
+					{ name: 'Wellness & Fitness Services', value: '35' },
+					// Farming
+					{ name: 'Farming, Ranching, Forestry', value: '36' },
+					// Finance
+					{ name: 'Financial Services', value: '37' },
+					{ name: 'Capital Markets', value: '38' },
+					{ name: 'Investment Banking', value: '39' },
+					{ name: 'Investment Management', value: '40' },
+					{ name: 'Venture Capital & Private Equity', value: '41' },
+					{ name: 'Banking', value: '42' },
+					{ name: 'International Trade & Development', value: '43' },
+					{ name: 'Insurance', value: '44' },
+					// Government
+					{ name: 'Government Administration', value: '45' },
+					{ name: 'Administration of Justice', value: '46' },
+					{ name: 'Fire Protection', value: '47' },
+					{ name: 'Law Enforcement', value: '48' },
+					{ name: 'Public Safety', value: '49' },
+					{ name: 'Education Administration Programs', value: '50' },
+					{ name: 'Health & Human Services', value: '51' },
+					{ name: 'Housing & Community Development', value: '52' },
+					{ name: 'Military', value: '53' },
+					{ name: 'International Affairs', value: '54' },
+					{ name: 'Public Policy Offices', value: '55' },
+					{ name: 'Executive Offices', value: '56' },
+					{ name: 'Legislative Offices', value: '57' },
+					{ name: 'Government Relations Services', value: '58' },
+					// Healthcare
+					{ name: 'Hospitals & Healthcare', value: '59' },
+					{ name: 'Community Services', value: '60' },
+					{ name: 'Individual & Family Services', value: '61' },
+					{ name: 'Alternative Medicine', value: '62' },
+					{ name: 'Home Health Care Services', value: '63' },
+					{ name: 'Mental Health Care', value: '64' },
+					{ name: 'Medical Practices', value: '65' },
+					{ name: 'Nursing Homes & Residential Care', value: '66' },
+					// Manufacturing
+					{ name: 'Apparel', value: '67' },
+					{ name: 'Appliances, Electrical, & Electronics', value: '68' },
+					{ name: 'Chemicals & Related Products', value: '69' },
+					{ name: 'Personal Care Products', value: '70' },
+					{ name: 'Pharmaceuticals', value: '71' },
+					{ name: 'Computer Equipment & Electronics', value: '72' },
+					{ name: 'Computer Hardware', value: '73' },
+					{ name: 'Semiconductor & Renewable Energy', value: '74' },
+					{ name: 'Fabricated Metal Products', value: '75' },
+					{ name: 'Food & Beverage', value: '76' },
+					{ name: 'Furniture', value: '77' },
+					{ name: 'Glass, Ceramics, Clay & Concrete', value: '78' },
+					{ name: 'Industrial Machinery & Equipment', value: '79' },
+					{ name: 'Medical Equipment', value: '80' },
+					{ name: 'Paper & Forest Product', value: '81' },
+					{ name: 'Plastics & Rubber Products', value: '82' },
+					{ name: 'Sporting Goods', value: '83' },
+					{ name: 'Textile', value: '84' },
+					{ name: 'Tobacco', value: '85' },
+					{ name: 'Aerospace & Defense', value: '86' },
+					{ name: 'Motor Vehicles', value: '87' },
+					{ name: 'Railroad Equipment', value: '88' },
+					{ name: 'Shipbuilding', value: '89' },
+					// Oil, Gas & Mining
+					{ name: 'Mining', value: '90' },
+					{ name: 'Oil & Gas', value: '91' },
+					// Business Services
+					{ name: 'Accounting & Services', value: '92' },
+					{ name: 'Advertising & Marketing Services', value: '93' },
+					{ name: 'Public Relations & Communications', value: '94' },
+					{ name: 'Market Research Services', value: '95' },
+					{ name: 'Architecture & Planning', value: '96' },
+					{ name: 'Business Consulting & Services', value: '97' },
+					{ name: 'Environmental Services', value: '98' },
+					{ name: 'Human Resources Services', value: '99' },
+					{ name: 'Outsourcing & Offshoring Consulting', value: '100' },
+					{ name: 'Design Services', value: '101' },
+					{ name: 'IT Consulting & IT Services', value: '103' },
+					{ name: 'Law Firms & Legal Services', value: '104' },
+					{ name: 'Photography Services', value: '105' },
+					{ name: 'Biotechnology Research Services', value: '106' },
+					{ name: 'Research Services', value: '107' },
+					{ name: 'Veterinary Services', value: '108' },
+					// Real Estate
+					{ name: 'Real Estate', value: '109' },
+					// Retail
+					{ name: 'Retail Luxury Goods & Jewelry', value: '110' },
+					{ name: 'Food & Beverage Retail', value: '111' },
+					{ name: 'Grocery Retail', value: '112' },
+					{ name: 'Retail Apparel & Fashion', value: '113' },
+					{ name: 'Retail Office Equipment', value: '114' },
+					{ name: 'Retail', value: '115' },
+					// Technology, Information & Media
+					{ name: 'Book & Newspaper Publishing', value: '116' },
+					{ name: 'Broadcast Media Production & Distribution', value: '117' },
+					{ name: 'Movies, Videos & Sound', value: '118' },
+					{ name: 'Telecommunications', value: '119' },
+					{ name: 'Data Infrastructure & Analytics', value: '120' },
+					{ name: 'Blockchain Services', value: '121' },
+					{ name: 'Information Services', value: '122' },
+					{ name: 'Internet Publishing', value: '123' },
+					{ name: 'Internet Shop & Marketplace', value: '124' },
+					{ name: 'Social Networking Platforms', value: '125' },
+					{ name: 'Computer & Mobile Games', value: '126' },
+					{ name: 'Computer Networking Products', value: '127' },
+					{ name: 'Computer & Network Security Services', value: '128' },
+					{ name: 'Software Development', value: '129' },
+					// Transportation
+					{ name: 'Airlines, Airports & Air Services', value: '130' },
+					{ name: 'Freight & Package Transportation', value: '131' },
+					{ name: 'Ground Passenger Transportation', value: '132' },
+					{ name: 'Maritime Transportation', value: '133' },
+					{ name: 'Truck Transportation', value: '134' },
+					{ name: 'Warehousing & Storage', value: '135' },
+					// Utilities
+					{ name: 'Utilities', value: '136' },
+					// Wholesale
+					{ name: 'Wholesale', value: '137' },
+					{ name: 'Wholesale Building Materials', value: '138' },
+					{ name: 'Wholesale Import & Export', value: '139' },
+				],
+				default: [],
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['searchCompanies'],
+					},
+				},
+				description: 'Filter by sub-industries',
+			},
+			{
+				displayName: 'Revenue Minimum',
+				name: 'companyRevenueMin',
+				type: 'options',
+				options: [
+					{ name: 'No minimum', value: '' },
+					{ name: '$1', value: '1' },
+					{ name: '$1M', value: '1000000' },
+					{ name: '$5M', value: '5000000' },
+					{ name: '$10M', value: '10000000' },
+					{ name: '$50M', value: '50000000' },
+					{ name: '$100M', value: '100000000' },
+					{ name: '$250M', value: '250000000' },
+					{ name: '$500M', value: '500000000' },
+					{ name: '$1B', value: '1000000000' },
+					{ name: '$10B', value: '10000000000' },
+					{ name: '$100B', value: '100000000000' },
+				],
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['searchCompanies'],
+					},
+				},
+				description: 'Minimum annual revenue in USD',
+			},
+			{
+				displayName: 'Revenue Maximum',
+				name: 'companyRevenueMax',
+				type: 'options',
+				options: [
+					{ name: 'No maximum', value: '' },
+					{ name: '$1M', value: '1000000' },
+					{ name: '$5M', value: '5000000' },
+					{ name: '$10M', value: '10000000' },
+					{ name: '$50M', value: '50000000' },
+					{ name: '$100M', value: '100000000' },
+					{ name: '$250M', value: '250000000' },
+					{ name: '$500M', value: '500000000' },
+					{ name: '$1B', value: '1000000000' },
+					{ name: '$10B', value: '10000000000' },
+					{ name: '$100B', value: '100000000000' },
+				],
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['searchCompanies'],
+					},
+				},
+				description: 'Maximum annual revenue in USD',
+			},
+
+			// ===== COMPANY ENRICH FROM SEARCH FIELDS =====
+			{
+				displayName: 'Request ID',
+				name: 'companyRequestId',
+				type: 'string',
+				default: '={{ $json.requestId }}',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['enrichFromSearch'],
+					},
+				},
+				description: 'The request ID from a previous company search operation (auto-populated if connected to a search node)',
+				hint: 'Connect this node to a Search Companies node to auto-populate',
+			},
+			{
+				displayName: 'Company Selection',
+				name: 'companySelectionType',
+				type: 'options',
+				options: [
+					{
+						name: 'All Companies',
+						value: 'all',
+						description: 'Enrich all companies from the search',
+					},
+					{
+						name: 'Specific Company IDs',
+						value: 'specific',
+						description: 'Enrich specific company IDs',
+					},
+				],
+				default: 'all',
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['enrichFromSearch'],
+					},
+				},
+			},
+			{
+				displayName: 'Company IDs',
+				name: 'companyIds',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['enrichFromSearch'],
+						companySelectionType: ['specific'],
+					},
+				},
+				description: 'Comma-separated list of company IDs to enrich',
+				placeholder: 'company_123, company_456',
+			},
+
+			// ===== COMPANY BULK ENRICH FIELDS =====
+			{
+				displayName: 'Bulk Type',
+				name: 'companyBulkType',
+				type: 'options',
+				options: [
+					{
+						name: 'Simple List',
+						value: 'simple',
+						description: 'Use a simple list of companies',
+					},
+					{
+						name: 'Advanced JSON',
+						value: 'json',
+						description: 'Use raw JSON for advanced configurations',
+					},
+				],
+				default: 'simple',
 				displayOptions: {
 					show: {
 						resource: ['company'],
 						operation: ['enrichBulk'],
 					},
 				},
-				default: '[\n  {\n    "id": "1",\n    "domain": "example.com"\n  },\n  {\n    "id": "2",\n    "name": "Acme Corporation"\n  }\n]',
-				description: 'Array of company objects to enrich (max 100). Each company needs a unique id and either: domain, company name, or fqdn',
 			},
-			// Prospecting Contact Search Fields
+			// Simple bulk fields for companies
+			{
+				displayName: 'Companies',
+				name: 'companiesList',
+				type: 'fixedCollection',
+				typeOptions: {
+					multipleValues: true,
+				},
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['enrichBulk'],
+						companyBulkType: ['simple'],
+					},
+				},
+				description: 'List of companies to enrich',
+				options: [
+					{
+						name: 'company',
+						displayName: 'Company',
+						values: [
+							{
+								displayName: 'Company Name',
+								name: 'name',
+								type: 'string',
+								default: '',
+								placeholder: 'Google',
+								description: 'Company name',
+							},
+							{
+								displayName: 'Domain',
+								name: 'domain',
+								type: 'string',
+								default: '',
+								placeholder: 'google.com',
+								description: 'Company domain (optional if name is provided)',
+							},
+						],
+					},
+				],
+			},
+			// Advanced JSON field for companies
+			{
+				displayName: 'Companies Payload (JSON)',
+				name: 'companiesPayloadJson',
+				type: 'string',
+				typeOptions: {
+					rows: 10,
+				},
+				default: '{\n  "companies": []\n}',
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['enrichBulk'],
+						companyBulkType: ['json'],
+					},
+				},
+				description: 'Raw JSON body for POST /v2/company bulk enrichment (companies + optional signals).',
+			},
+
+			// ===== PAGINATION FIELDS (CONTACT & COMPANY SEARCH) =====
 			{
 				displayName: 'Page',
 				name: 'page',
 				type: 'number',
+				default: 0,
 				displayOptions: {
 					show: {
-						resource: ['prospecting'],
+						resource: ['contact', 'company'],
 						operation: ['searchContacts', 'searchCompanies'],
 					},
 				},
-				default: 0,
-				description: 'Page number (starts at 0)',
+				description: 'Page number for pagination (starts at 0)',
 			},
 			{
 				displayName: 'Page Size',
-				name: 'size',
+				name: 'pageSize',
 				type: 'number',
+				default: 50,
 				displayOptions: {
 					show: {
-						resource: ['prospecting'],
+						resource: ['contact', 'company'],
 						operation: ['searchContacts', 'searchCompanies'],
 					},
 				},
-				default: 40,
-				description: 'Number of results per page (10-40)',
-			},
-			// Contact Filters
-			{
-				displayName: 'Contact Filters',
-				name: 'contactFilters',
-				type: 'collection',
-				placeholder: 'Add Filter',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['prospecting'],
-						operation: ['searchContacts'],
-					},
-				},
-				options: [
-					{
-						displayName: 'Job Titles',
-						name: 'jobTitles',
-						type: 'string',
-						default: '',
-						placeholder: 'CEO,CTO,VP Sales',
-						description: 'Comma-separated job titles',
-					},
-					{
-						displayName: 'Departments',
-						name: 'departments',
-						type: 'multiOptions',
-						options: [
-							{ name: 'Business Development', value: 'Business Development' },
-							{ name: 'Consulting', value: 'Consulting' },
-							{ name: 'Customer Service', value: 'Customer Service' },
-							{ name: 'Engineering & Technical', value: 'Engineering & Technical' },
-							{ name: 'Finance', value: 'Finance' },
-							{ name: 'General Management', value: 'General Management' },
-							{ name: 'Human Resources', value: 'Human Resources' },
-							{ name: 'Information Technology', value: 'Information Technology' },
-							{ name: 'Legal', value: 'Legal' },
-							{ name: 'Marketing', value: 'Marketing' },
-							{ name: 'Operations', value: 'Operations' },
-							{ name: 'Product', value: 'Product' },
-							{ name: 'Research & Analytics', value: 'Research & Analytics' },
-							{ name: 'Sales', value: 'Sales' },
-						],
-						default: [],
-						description: 'Select departments',
-					},
-					{
-						displayName: 'Seniority',
-						name: 'seniority',
-						type: 'multiOptions',
-						options: [
-							{ name: 'Founder', value: 10 },
-							{ name: 'C-Suite', value: 9 },
-							{ name: 'Vice President', value: 8 },
-							{ name: 'Partner', value: 7 },
-							{ name: 'Director', value: 6 },
-							{ name: 'Manager', value: 5 },
-							{ name: 'Senior', value: 4 },
-							{ name: 'Entry', value: 3 },
-							{ name: 'Intern', value: 2 },
-							{ name: 'Other', value: 1 },
-						],
-						default: [],
-						description: 'Select seniority levels',
-					},
-					{
-						displayName: 'Countries',
-						name: 'countries',
-						type: 'multiOptions',
-						options: [
-							{ name: 'United States', value: 'United States' },
-							{ name: 'United Kingdom', value: 'United Kingdom' },
-							{ name: 'Canada', value: 'Canada' },
-							{ name: 'Australia', value: 'Australia' },
-							{ name: 'Germany', value: 'Germany' },
-							{ name: 'France', value: 'France' },
-							{ name: 'Netherlands', value: 'Netherlands' },
-							{ name: 'India', value: 'India' },
-							{ name: 'Brazil', value: 'Brazil' },
-							{ name: 'Singapore', value: 'Singapore' },
-							{ name: 'Israel', value: 'Israel' },
-							{ name: 'Spain', value: 'Spain' },
-							{ name: 'Italy', value: 'Italy' },
-							{ name: 'Mexico', value: 'Mexico' },
-							{ name: 'Japan', value: 'Japan' },
-						],
-						default: [],
-						description: 'Select countries',
-					},
-					{
-						displayName: 'States',
-						name: 'states',
-						type: 'string',
-						default: '',
-						placeholder: 'California,New York,Texas',
-						description: 'Comma-separated states',
-					},
-					{
-						displayName: 'Cities',
-						name: 'cities',
-						type: 'string',
-						default: '',
-						placeholder: 'San Francisco,New York,London',
-						description: 'Comma-separated cities',
-					},
-					{
-						displayName: 'Existing Data Points',
-						name: 'existingDataPoints',
-						type: 'multiOptions',
-						options: [
-							{ name: 'Phone', value: 'phone' },
-							{ name: 'Work Email', value: 'work_email' },
-							{ name: 'Mobile Phone', value: 'mobile_phone' },
-							{ name: 'Direct Phone', value: 'direct_phone' },
-						],
-						default: [],
-						description: 'Filter by contacts that have these data points',
-					},
-				],
-			},
-			// Company Filters for Contact Search
-			{
-				displayName: 'Company Filters',
-				name: 'companyFilters',
-				type: 'collection',
-				placeholder: 'Add Filter',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['prospecting'],
-						operation: ['searchContacts', 'searchCompanies'],
-					},
-				},
-				options: [
-					{
-						displayName: 'Company Names',
-						name: 'names',
-						type: 'string',
-						default: '',
-						placeholder: 'Microsoft,Apple,Google',
-						description: 'Comma-separated company names',
-					},
-					{
-						displayName: 'Domains',
-						name: 'domains',
-						type: 'string',
-						default: '',
-						placeholder: 'microsoft.com,apple.com',
-						description: 'Comma-separated company domains',
-					},
-					{
-						displayName: 'Employee Count',
-						name: 'employeeCountRanges',
-						type: 'multiOptions',
-						options: [
-							{ name: '1-10', value: '1-10' },
-							{ name: '11-50', value: '11-50' },
-							{ name: '51-200', value: '51-200' },
-							{ name: '201-500', value: '201-500' },
-							{ name: '501-1000', value: '501-1000' },
-							{ name: '1001-5000', value: '1001-5000' },
-							{ name: '5001-10000', value: '5001-10000' },
-							{ name: '10001+', value: '10001+' },
-						],
-						default: [],
-						description: 'Select employee count ranges',
-					},
-					{
-						displayName: 'Industries',
-						name: 'industries',
-						type: 'multiOptions',
-						options: [
-							{ name: 'Technology, Information & Media', value: 1 },
-							{ name: 'Finance', value: 2 },
-							{ name: 'Healthcare', value: 3 },
-							{ name: 'Retail', value: 4 },
-							{ name: 'Manufacturing', value: 5 },
-							{ name: 'Education', value: 6 },
-							{ name: 'Real Estate', value: 7 },
-							{ name: 'Business Services', value: 8 },
-							{ name: 'Entertainment', value: 9 },
-							{ name: 'Transportation & Logistics', value: 10 },
-							{ name: 'Hospitality & Tourism', value: 11 },
-							{ name: 'Construction', value: 12 },
-							{ name: 'Energy & Utilities', value: 13 },
-							{ name: 'Government & Public Sector', value: 14 },
-							{ name: 'Non-Profit', value: 15 },
-							{ name: 'Agriculture', value: 16 },
-							{ name: 'Telecommunications', value: 17 },
-							{ name: 'Insurance', value: 18 },
-							{ name: 'Legal', value: 19 },
-							{ name: 'Consulting', value: 20 },
-						],
-						default: [],
-						description: 'Select main industries',
-					},
-					{
-						displayName: 'Revenue Min',
-						name: 'revenueMin',
-						type: 'options',
-						options: [
-							{ name: 'Any', value: 0 },
-							{ name: '$0', value: 0 },
-							{ name: '$1M', value: 1000000 },
-							{ name: '$10M', value: 10000000 },
-							{ name: '$50M', value: 50000000 },
-							{ name: '$100M', value: 100000000 },
-							{ name: '$500M', value: 500000000 },
-							{ name: '$1B', value: 1000000000 },
-						],
-						default: 0,
-						description: 'Minimum revenue',
-					},
-					{
-						displayName: 'Revenue Max',
-						name: 'revenueMax',
-						type: 'options',
-						options: [
-							{ name: 'Any', value: 0 },
-							{ name: '$1M', value: 1000000 },
-							{ name: '$10M', value: 10000000 },
-							{ name: '$50M', value: 50000000 },
-							{ name: '$100M', value: 100000000 },
-							{ name: '$500M', value: 500000000 },
-							{ name: '$1B', value: 1000000000 },
-							{ name: '$10B+', value: 10000000000 },
-						],
-						default: 0,
-						description: 'Maximum revenue',
-					},
-					{
-						displayName: 'Sub Industries',
-						name: 'subIndustries',
-						type: 'multiOptions',
-						options: [
-							{ name: 'Software Development', value: 1 },
-							{ name: 'Internet Services', value: 2 },
-							{ name: 'Financial Services', value: 3 },
-							{ name: 'Biotechnology', value: 4 },
-							{ name: 'Pharmaceuticals', value: 5 },
-							{ name: 'Medical Devices', value: 6 },
-							{ name: 'Telecommunications', value: 7 },
-							{ name: 'Semiconductors', value: 8 },
-							{ name: 'Cloud Computing', value: 9 },
-							{ name: 'E-Commerce', value: 10 },
-							{ name: 'Cybersecurity', value: 11 },
-							{ name: 'Artificial Intelligence', value: 12 },
-							{ name: 'Data Analytics', value: 13 },
-							{ name: 'Digital Marketing', value: 14 },
-							{ name: 'Fintech', value: 15 },
-						],
-						default: [],
-						description: 'Select sub-industries',
-					},
-					{
-						displayName: 'Company Countries',
-						name: 'companyCountries',
-						type: 'multiOptions',
-						options: [
-							{ name: 'United States', value: 'United States' },
-							{ name: 'United Kingdom', value: 'United Kingdom' },
-							{ name: 'Canada', value: 'Canada' },
-							{ name: 'Australia', value: 'Australia' },
-							{ name: 'Germany', value: 'Germany' },
-							{ name: 'France', value: 'France' },
-							{ name: 'Netherlands', value: 'Netherlands' },
-							{ name: 'India', value: 'India' },
-							{ name: 'Brazil', value: 'Brazil' },
-							{ name: 'Singapore', value: 'Singapore' },
-							{ name: 'Israel', value: 'Israel' },
-							{ name: 'Spain', value: 'Spain' },
-							{ name: 'Italy', value: 'Italy' },
-							{ name: 'Mexico', value: 'Mexico' },
-							{ name: 'Japan', value: 'Japan' },
-						],
-						default: [],
-						description: 'Select company headquarters countries',
-					},
-					{
-						displayName: 'SIC Codes',
-						name: 'sicCodes',
-						type: 'string',
-						default: '',
-						placeholder: '7372,7373,7374',
-						description: 'Comma-separated SIC codes',
-					},
-					{
-						displayName: 'NAICS Codes',
-						name: 'naicsCodes',
-						type: 'string',
-						default: '',
-						placeholder: '511210,541511,541512',
-						description: 'Comma-separated NAICS codes',
-					},
-					{
-						displayName: 'Technologies',
-						name: 'technologies',
-						type: 'string',
-						default: '',
-						placeholder: 'Salesforce,HubSpot,AWS',
-						description: 'Comma-separated technologies used by companies',
-					},
-					{
-						displayName: 'Intent Topics',
-						name: 'intentTopics',
-						type: 'string',
-						default: '',
-						placeholder: 'Digital Transformation,Cloud Migration',
-						description: 'Comma-separated intent topics',
-					},
-				],
-			},
-			// Prospecting Enrich Contacts Fields
-			{
-				displayName: 'Request ID',
-				name: 'requestId',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['prospecting'],
-						operation: ['enrichContacts', 'enrichCompanies'],
-					},
-				},
-				default: '',
-				required: true,
-				description: 'Request ID from the search results',
-			},
-			{
-				displayName: 'Selection Type',
-				name: 'selectionType',
-				type: 'options',
-				displayOptions: {
-					show: {
-						resource: ['prospecting'],
-						operation: ['enrichContacts'],
-					},
-				},
-				options: [
-					{
-						name: 'All Contacts',
-						value: 'all',
-						description: 'Enrich all contacts from search',
-					},
-					{
-						name: 'New Contacts Only',
-						value: 'new',
-						description: 'Enrich only new contacts (not previously shown)',
-					},
-					{
-						name: 'Revealed Contacts Only',
-						value: 'revealed',
-						description: 'Enrich only previously revealed contacts',
-					},
-					{
-						name: 'Custom Selection',
-						value: 'custom',
-						description: 'Specify contact IDs manually',
-					},
-				],
-				default: 'custom',
-				description: 'How to select contacts for enrichment',
-			},
-			{
-				displayName: 'Contact IDs',
-				name: 'contactIds',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['prospecting'],
-						operation: ['enrichContacts'],
-						selectionType: ['custom'],
-					},
-				},
-				default: '',
-				placeholder: 'id1,id2,id3',
-				description: 'Comma-separated list of contact IDs to enrich',
-			},
-			{
-				displayName: 'Selection Type',
-				name: 'companySelectionType',
-				type: 'options',
-				displayOptions: {
-					show: {
-						resource: ['prospecting'],
-						operation: ['enrichCompanies'],
-					},
-				},
-				options: [
-					{
-						name: 'All Companies',
-						value: 'all',
-						description: 'Enrich all companies from search',
-					},
-					{
-						name: 'Custom Selection',
-						value: 'custom',
-						description: 'Specify company IDs manually',
-					},
-				],
-				default: 'custom',
-				description: 'How to select companies for enrichment',
-			},
-			{
-				displayName: 'Company IDs',
-				name: 'companyIds',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['prospecting'],
-						operation: ['enrichCompanies'],
-						companySelectionType: ['custom'],
-					},
-				},
-				default: '',
-				placeholder: 'id1,id2,id3',
-				description: 'Comma-separated list of company IDs to enrich',
+				description: 'Number of results per page (max 50)',
 			},
 		],
 	};
@@ -845,65 +1711,963 @@ export class Lusha implements INodeType {
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
-		const credentials = await this.getCredentials('lushaApi');
-
 		const resource = this.getNodeParameter('resource', 0) as string;
 		const operation = this.getNodeParameter('operation', 0) as string;
 
 		for (let i = 0; i < items.length; i++) {
 			try {
-				let response;
+				let requestOptions: IHttpRequestOptions = {
+					baseURL: 'https://api.lusha.com',
+					url: '',
+					method: 'GET',
+					headers: {
+						Accept: 'application/json',
+					},
+					qs: {},
+					body: {},
+					json: true,
+					returnFullResponse: false,
+				};
 
+				// ===================== CONTACT OPERATIONS =====================
 				if (resource === 'contact') {
-					if (operation === 'enrich') {
-						response = await enrichContact.call(this, credentials, i);
-					} else if (operation === 'enrichBulk') {
-						response = await enrichContactsBulk.call(this, credentials, i);
-					}
-				} else if (resource === 'company') {
-					if (operation === 'enrich') {
-						response = await enrichCompany.call(this, credentials, i);
-					} else if (operation === 'enrichBulk') {
-						response = await enrichCompaniesBulk.call(this, credentials, i);
-					}
-				} else if (resource === 'prospecting') {
-					if (operation === 'searchContacts') {
-						response = await searchContacts.call(this, credentials, i);
-					} else if (operation === 'enrichContacts') {
-						response = await enrichProspectingContacts.call(this, credentials, i);
-					} else if (operation === 'searchCompanies') {
-						response = await searchCompanies.call(this, credentials, i);
-					} else if (operation === 'enrichCompanies') {
-						response = await enrichProspectingCompanies.call(this, credentials, i);
+					switch (operation) {
+						case 'enrichSingle': {
+							const searchBy = this.getNodeParameter('searchBy', i) as string;
+
+							requestOptions.url = '/v2/person';
+							requestOptions.method = 'GET';
+							delete requestOptions.body; // Remove body for GET request
+							requestOptions.qs = {};
+
+							if (searchBy === 'nameAndCompany') {
+								const firstName = this.getNodeParameter('firstName', i, '') as string;
+								const lastName = this.getNodeParameter('lastName', i, '') as string;
+								const companyName = this.getNodeParameter('companyName', i, '') as string;
+								const companyDomain = this.getNodeParameter('companyDomain', i, '') as string;
+
+								if (firstName) requestOptions.qs.firstName = firstName;
+								if (lastName) requestOptions.qs.lastName = lastName;
+								
+								// Include both company name and domain if provided
+								if (companyName) requestOptions.qs.companyName = companyName;
+								if (companyDomain) requestOptions.qs.companyDomain = companyDomain;
+							} else if (searchBy === 'email') {
+								const email = this.getNodeParameter('email', i) as string;
+								requestOptions.qs.email = email;
+							} else if (searchBy === 'linkedinUrl') {
+								const linkedinUrl = this.getNodeParameter('linkedinUrl', i) as string;
+								requestOptions.qs.linkedinUrl = linkedinUrl;
+							}
+							
+							// Add filterBy if specified
+							const filterBy = this.getNodeParameter('filterBy', i, '') as string;
+							if (filterBy) {
+								requestOptions.qs.filterBy = filterBy;
+							}
+							
+							// Add reveal options only if true
+							const revealEmails = this.getNodeParameter('revealEmails', i, false) as boolean;
+							const revealPhones = this.getNodeParameter('revealPhones', i, false) as boolean;
+							if (revealEmails) requestOptions.qs.revealEmails = true;
+							if (revealPhones) requestOptions.qs.revealPhones = true;
+							
+							break;
+						}
+
+						case 'searchContacts': {
+							requestOptions.url = '/prospecting/contact/search';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs; // Remove query string for POST
+
+							// Build proper request body structure
+							const contactSearchBody: IDataObject = {
+								pages: {
+									page: this.getNodeParameter('page', i, 0) as number,
+									size: Math.min(this.getNodeParameter('pageSize', i, 50) as number, 50),
+								},
+								filters: {
+									contacts: { include: {} },
+									companies: { include: {} },
+								},
+							};
+
+							// Add job titles
+							const jobTitles = this.getNodeParameter('jobTitles', i, '') as string;
+							if (jobTitles) {
+								(contactSearchBody.filters as IDataObject).contacts = {
+									include: {
+										jobTitles: jobTitles
+											.split(',')
+											.map((t) => t.trim())
+											.filter((t) => t),
+									},
+								};
+							}
+
+							// Add departments
+							const departments = this.getNodeParameter('departments', i, []) as string[];
+							if (departments.length) {
+								const contactInclude = ((contactSearchBody.filters as IDataObject)
+									.contacts as IDataObject).include as IDataObject;
+								contactInclude.departments = departments;
+							}
+
+							// Add seniorities (as numbers)
+							const seniorities = this.getNodeParameter('seniorities', i, []) as number[];
+							if (seniorities.length) {
+								const contactInclude = ((contactSearchBody.filters as IDataObject)
+									.contacts as IDataObject).include as IDataObject;
+								contactInclude.seniority = seniorities;
+							}
+
+							// Add locations
+							const countries = this.getNodeParameter('countries', i, []) as string[];
+							const states = this.getNodeParameter('states', i, '') as string;
+							const cities = this.getNodeParameter('cities', i, '') as string;
+							const locations: IDataObject[] = [];
+
+							if (countries.length) {
+								countries.forEach((country) => {
+									locations.push({ country });
+								});
+							}
+							if (states) {
+								states
+									.split(',')
+									.map((s) => s.trim())
+									.filter((s) => s)
+									.forEach((state) => {
+										locations.push({ state });
+									});
+							}
+							if (cities) {
+								cities
+									.split(',')
+									.map((c) => c.trim())
+									.filter((c) => c)
+									.forEach((city) => {
+										locations.push({ city });
+									});
+							}
+
+							if (locations.length) {
+								const contactInclude = ((contactSearchBody.filters as IDataObject)
+									.contacts as IDataObject).include as IDataObject;
+								contactInclude.locations = locations;
+							}
+
+							// Add existing data points
+							const existingDataPoints = this.getNodeParameter(
+								'existingDataPoints',
+								i,
+								[],
+							) as string[];
+							if (existingDataPoints.length) {
+								const contactInclude = ((contactSearchBody.filters as IDataObject)
+									.contacts as IDataObject).include as IDataObject;
+								contactInclude.existingDataPoints = existingDataPoints;
+							}
+
+							// Add company filters (names/domains)
+							const companyDomains = this.getNodeParameter(
+								'companyDomains',
+								i,
+								'',
+							) as string;
+							if (companyDomains) {
+								const companiesInclude = ((contactSearchBody.filters as IDataObject)
+									.companies as IDataObject).include as IDataObject;
+								const companyList = companyDomains
+									.split(',')
+									.map((c) => c.trim())
+									.filter((c) => c);
+
+								// Separate names and domains
+								const domains = companyList.filter((c) => c.includes('.'));
+								const names = companyList.filter((c) => !c.includes('.'));
+
+								if (domains.length) companiesInclude.domains = domains;
+								if (names.length) companiesInclude.names = names;
+							}
+							
+							// Add company industry filters
+							const companyIndustries = this.getNodeParameter(
+								'contactSearchCompanyMainIndustries',
+								i,
+								[],
+							) as string[];
+							if (companyIndustries.length) {
+								const companiesInclude = ((contactSearchBody.filters as IDataObject)
+									.companies as IDataObject).include as IDataObject;
+								companiesInclude.mainIndustriesIds = companyIndustries;
+							}
+							
+							// Add company sub-industry filters
+							const companySubIndustries = this.getNodeParameter(
+								'contactSearchCompanySubIndustries',
+								i,
+								[],
+							) as string[];
+							if (companySubIndustries.length) {
+								const companiesInclude = ((contactSearchBody.filters as IDataObject)
+									.companies as IDataObject).include as IDataObject;
+								companiesInclude.subIndustriesIds = companySubIndustries;
+							}
+							
+							// Handle employee count min/max dropdowns
+							const employeeMin = this.getNodeParameter(
+								'contactSearchCompanyEmployeeMin',
+								i,
+								'',
+							) as string;
+							const employeeMax = this.getNodeParameter(
+								'contactSearchCompanyEmployeeMax',
+								i,
+								'',
+							) as string;
+							
+							if (employeeMin || employeeMax) {
+								const companiesInclude = ((contactSearchBody.filters as IDataObject)
+									.companies as IDataObject).include as IDataObject;
+								
+								const min = employeeMin ? parseInt(employeeMin) : 1;
+								const max = employeeMax ? parseInt(employeeMax) : 999999;
+								
+								companiesInclude.sizes = [{ min, max }];
+							}
+							
+							// Add company revenue filters
+							const companyRevenueMin = this.getNodeParameter(
+								'contactSearchCompanyRevenueMin',
+								i,
+								'',
+							) as string;
+							const companyRevenueMax = this.getNodeParameter(
+								'contactSearchCompanyRevenueMax',
+								i,
+								'',
+							) as string;
+							
+							if (companyRevenueMin || companyRevenueMax) {
+								const companiesInclude = ((contactSearchBody.filters as IDataObject)
+									.companies as IDataObject).include as IDataObject;
+								const revenues: IDataObject[] = [{
+									min: companyRevenueMin ? parseInt(companyRevenueMin) : 0,
+									max: companyRevenueMax ? parseInt(companyRevenueMax) : 999999999999,
+								}];
+								companiesInclude.revenues = revenues;
+							}
+							
+							// Add company locations
+							const companyCountries = this.getNodeParameter(
+								'contactSearchCompanyCountries',
+								i,
+								[],
+							) as string[];
+							const companyStates = this.getNodeParameter(
+								'contactSearchCompanyStates',
+								i,
+								'',
+							) as string;
+							const companyCities = this.getNodeParameter(
+								'contactSearchCompanyCities',
+								i,
+								'',
+							) as string;
+							
+							const companyLocations: IDataObject[] = [];
+							
+							if (companyCountries.length) {
+								companyCountries.forEach((country) => {
+									companyLocations.push({ country });
+								});
+							}
+							if (companyStates) {
+								companyStates
+									.split(',')
+									.map((s) => s.trim())
+									.filter((s) => s)
+									.forEach((state) => {
+										companyLocations.push({ state });
+									});
+							}
+							if (companyCities) {
+								companyCities
+									.split(',')
+									.map((c) => c.trim())
+									.filter((c) => c)
+									.forEach((city) => {
+										companyLocations.push({ city });
+									});
+							}
+							
+							if (companyLocations.length) {
+								const companiesInclude = ((contactSearchBody.filters as IDataObject)
+									.companies as IDataObject).include as IDataObject;
+								companiesInclude.locations = companyLocations;
+							}
+
+							requestOptions.body = contactSearchBody;
+							break;
+						}
+
+						case 'enrichFromSearch': {
+							// Get request ID - try from input first, then from parameter
+							let requestId = '';
+							const inputData = items[i];
+							const searchData = inputData.json;
+							
+							// Try to get requestId from input data first
+							if (searchData.requestId) {
+								requestId = searchData.requestId as string;
+							} else {
+								requestId = this.getNodeParameter('requestId', i) as string;
+							}
+							
+							const selectionType = this.getNodeParameter('contactSelectionType', i, 'all') as string;
+							let contactIds: string[] = [];
+							
+							if (selectionType === 'all') {
+								// Use all contact IDs from search results
+								if (searchData.allContactIds && Array.isArray(searchData.allContactIds)) {
+									contactIds = searchData.allContactIds as string[];
+								} else if (searchData.data && Array.isArray(searchData.data)) {
+									contactIds = searchData.data.map((contact: any) => contact.contactId).filter((id: any) => id);
+								}
+							} else if (selectionType === 'new') {
+								// Use only new contact IDs (where isShown = false)
+								if (searchData.newContactIds && Array.isArray(searchData.newContactIds)) {
+									contactIds = searchData.newContactIds as string[];
+								} else if (searchData.data && Array.isArray(searchData.data)) {
+									contactIds = searchData.data
+										.filter((contact: any) => contact.isShown === false)
+										.map((contact: any) => contact.contactId)
+										.filter((id: any) => id);
+								}
+							} else if (selectionType === 'specific') {
+								const idsInput = this.getNodeParameter('contactIds', i, '') as string;
+								contactIds = idsInput
+									.split(',')
+									.map((id) => id.trim())
+									.filter((id) => id);
+							}
+
+							// Ensure we have valid IDs
+							if (!contactIds.length) {
+								throw new Error('No contact IDs found. Ensure the search operation returned results.');
+							}
+
+							requestOptions.url = '/prospecting/contact/enrich';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs;
+
+							requestOptions.body = {
+								requestId,
+								contactIds,
+							};
+							break;
+						}
+
+						case 'enrichBulk': {
+							requestOptions.url = '/v2/person';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs;
+
+							const bulkType = this.getNodeParameter('bulkType', i, 'simple') as string;
+
+							if (bulkType === 'simple') {
+								const contactsList = this.getNodeParameter('contactsList', i, {}) as IDataObject;
+								const contacts: IDataObject[] = [];
+
+								if (contactsList.contact && Array.isArray(contactsList.contact)) {
+									let contactIdCounter = 1;
+									(contactsList.contact as IDataObject[]).forEach((contact) => {
+										const contactData: IDataObject = {
+											contactId: String(contactIdCounter++),
+										};
+										
+										// Add only one identifier per contact - prioritize email
+										if (contact.email) {
+											contactData.email = contact.email;
+										} else if (contact.linkedinUrl) {
+											contactData.linkedinUrl = contact.linkedinUrl;
+										} else if (contact.fullName) {
+											// Use fullName with companies array structure
+											contactData.fullName = contact.fullName;
+											
+											// Build companies array if company info is provided
+											const companies: IDataObject[] = [];
+											if (contact.companyName || contact.companyDomain) {
+												const company: IDataObject = {
+													isCurrent: true, // Default to current company
+												};
+												
+												// Use either name or domain
+												if (contact.companyDomain) {
+													company.domain = contact.companyDomain;
+												} else if (contact.companyName) {
+													company.name = contact.companyName;
+												}
+												
+												companies.push(company);
+											}
+											
+											if (companies.length > 0) {
+												contactData.companies = companies;
+											}
+										}
+										
+										if (Object.keys(contactData).length > 1) { // Must have contactId + identifier
+											contacts.push(contactData);
+										}
+									});
+								}
+
+								// Build metadata object
+								const metadata: IDataObject = {};
+								
+								const filterBy = this.getNodeParameter('bulkFilterBy', i, '') as string;
+								if (filterBy) {
+									metadata.filterBy = filterBy;
+								}
+								
+								const revealEmails = this.getNodeParameter('bulkRevealEmails', i, false) as boolean;
+								const revealPhones = this.getNodeParameter('bulkRevealPhones', i, false) as boolean;
+								if (revealEmails) metadata.revealEmails = true;
+								if (revealPhones) metadata.revealPhones = true;
+
+								requestOptions.body = {
+									contacts,
+									metadata,
+								};
+							} else {
+								// Advanced JSON mode
+								const payloadRaw = this.getNodeParameter(
+									'contactsPayloadJson',
+									i,
+									'{}',
+								) as string;
+
+								let payload: IDataObject;
+								try {
+									payload = JSON.parse(payloadRaw);
+								} catch (e) {
+									throw new Error('Contacts Payload (JSON) must be valid JSON.');
+								}
+
+								requestOptions.body = payload;
+							}
+							break;
+						}
 					}
 				}
 
-				if (response) {
-					// For bulk operations that return arrays, handle appropriately
-					if (Array.isArray(response)) {
-						response.forEach((item: any) => {
-							returnData.push({
-								json: item,
-								pairedItem: { item: i },
-							});
-						});
-					} else {
-						returnData.push({
-							json: response,
-							pairedItem: { item: i },
-						});
+				// ===================== COMPANY OPERATIONS =====================
+				if (resource === 'company') {
+					switch (operation) {
+						case 'enrichSingle': {
+							const companySearchBy = this.getNodeParameter(
+								'companySearchBy',
+								i,
+							) as string;
+
+							// Single company enrich
+							requestOptions.url = '/company';
+							requestOptions.method = 'GET';
+							delete requestOptions.body;
+							requestOptions.qs = {};
+
+							if (companySearchBy === 'domain') {
+								const domain = this.getNodeParameter('domain', i) as string;
+								requestOptions.qs.domain = domain;
+							} else if (companySearchBy === 'name') {
+								const companyName = this.getNodeParameter(
+									'companyName',
+									i,
+								) as string;
+								requestOptions.qs.company = companyName;
+							}
+							break;
+						}
+
+						case 'searchCompanies': {
+							requestOptions.url = '/prospecting/company/search';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs;
+
+							const companySearchBody: IDataObject = {
+								pages: {
+									page: this.getNodeParameter('page', i, 0) as number,
+									size: Math.min(this.getNodeParameter('pageSize', i, 50) as number, 50),
+								},
+								filters: {
+									companies: { include: {} },
+								},
+							};
+
+							const filters = companySearchBody.filters as IDataObject;
+							const companies = filters.companies as IDataObject;
+							const companiesInclude = companies.include as IDataObject;
+
+							// Names / domains
+							const searchCompanyDomains = this.getNodeParameter(
+								'searchCompanyDomains',
+								i,
+								'',
+							) as string;
+							if (searchCompanyDomains) {
+								const companyList = searchCompanyDomains
+									.split(',')
+									.map((c) => c.trim())
+									.filter((c) => c);
+
+								const domains = companyList.filter((c) => c.includes('.'));
+								const names = companyList.filter((c) => !c.includes('.'));
+
+								if (domains.length) companiesInclude.domains = domains;
+								if (names.length) companiesInclude.names = names;
+							}
+
+							// Company countries / states / cities => locations[]
+							const companyCountries = this.getNodeParameter(
+								'companyCountries',
+								i,
+								[],
+							) as string[];
+							const companyStates = this.getNodeParameter(
+								'companyStates',
+								i,
+								'',
+							) as string;
+							const companyCities = this.getNodeParameter(
+								'companyCities',
+								i,
+								'',
+							) as string;
+
+							const companyLocations: IDataObject[] = [];
+
+							if (companyCountries.length) {
+								companyCountries.forEach((country) => companyLocations.push({ country }));
+							}
+							if (companyStates) {
+								companyStates
+									.split(',')
+									.map((s) => s.trim())
+									.filter((s) => s)
+									.forEach((state) => companyLocations.push({ state }));
+							}
+							if (companyCities) {
+								companyCities
+									.split(',')
+									.map((c) => c.trim())
+									.filter((c) => c)
+									.forEach((city) => companyLocations.push({ city }));
+							}
+							if (companyLocations.length) {
+								companiesInclude.locations = companyLocations;
+							}
+
+							// Handle employee count min/max dropdowns
+							const employeeMin = this.getNodeParameter(
+								'companyEmployeeMin',
+								i,
+								'',
+							) as string;
+							const employeeMax = this.getNodeParameter(
+								'companyEmployeeMax',
+								i,
+								'',
+							) as string;
+							
+							if (employeeMin || employeeMax) {
+								const min = employeeMin ? parseInt(employeeMin) : 1;
+								const max = employeeMax ? parseInt(employeeMax) : 999999;
+								
+								companiesInclude.sizes = [{ min, max }];
+							}
+
+							// Main industry IDs
+							const companyMainIndustryIds = this.getNodeParameter(
+								'companyMainIndustryIds',
+								i,
+								[],
+							) as string[];
+							if (companyMainIndustryIds.length) {
+								companiesInclude.mainIndustriesIds = companyMainIndustryIds;
+							}
+							
+							// Sub-industry IDs
+							const companySubIndustryIds = this.getNodeParameter(
+								'companySubIndustryIds',
+								i,
+								[],
+							) as string[];
+							if (companySubIndustryIds.length) {
+								companiesInclude.subIndustriesIds = companySubIndustryIds;
+							}
+
+							// Revenue min / max - should be "revenues" array
+							const companyRevenueMin = this.getNodeParameter(
+								'companyRevenueMin',
+								i,
+								'',
+							) as string;
+							const companyRevenueMax = this.getNodeParameter(
+								'companyRevenueMax',
+								i,
+								'',
+							) as string;
+
+							if (companyRevenueMin || companyRevenueMax) {
+								const revenues: IDataObject[] = [];
+								const revenueRange: IDataObject = {};
+								
+								if (companyRevenueMin) {
+									revenueRange.min = parseInt(companyRevenueMin);
+								} else {
+									revenueRange.min = 0;
+								}
+								
+								if (companyRevenueMax) {
+									revenueRange.max = parseInt(companyRevenueMax);
+								} else {
+									revenueRange.max = 999999999999; // Very large number if no max
+								}
+								
+								revenues.push(revenueRange);
+								companiesInclude.revenues = revenues;
+							}
+
+							requestOptions.body = companySearchBody;
+							break;
+						}
+
+						case 'enrichFromSearch': {
+							// FIXED: Generate a unique requestId (UUID v4)
+							const crypto = require('crypto');
+							const requestId = crypto.randomUUID();
+							
+							// Get company IDs from input or parameters
+							const inputData = items[i];
+							const searchData = inputData.json;
+							
+							const selectionType = this.getNodeParameter('companySelectionType', i, 'all') as string;
+							let companiesIds: string[] = [];
+							
+							if (selectionType === 'all') {
+								// FIXED: Try to get IDs from various possible fields
+								if (searchData.allCompanyIds && Array.isArray(searchData.allCompanyIds)) {
+									companiesIds = searchData.allCompanyIds as string[];
+								} else if (searchData.data && Array.isArray(searchData.data)) {
+									// Check for both companyId and id fields
+									companiesIds = searchData.data.map((company: any) => 
+										company.companyId || company.id || ''
+									).filter((id: any) => id);
+								} else {
+									// Try to get from all input items - check multiple possible fields
+									const allInputItems = this.getInputData();
+									companiesIds = allInputItems
+										.map(item => {
+											const json = item.json;
+											return json.companyId || json.id || json.company_id || '';
+										})
+										.filter(id => id) as string[];
+								}
+							} else if (selectionType === 'specific') {
+								const idsInput = this.getNodeParameter('companyIds', i, '') as string;
+								companiesIds = idsInput
+									.split(',')
+									.map((id) => id.trim())
+									.filter((id) => id);
+							}
+
+							// Ensure we have valid IDs
+							if (!companiesIds.length) {
+								throw new Error('No company IDs found. Ensure the search operation returned results or provide company IDs.');
+							}
+
+							requestOptions.url = '/prospecting/company/enrich';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs;
+
+							requestOptions.body = {
+								requestId: requestId,
+								companiesIds: companiesIds, // FIXED: API expects 'companiesIds' not 'companyIds'
+							};
+							break;
+						}
+
+						case 'enrichBulk': {
+							requestOptions.url = '/v2/company';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs;
+
+							const bulkType = this.getNodeParameter('companyBulkType', i, 'simple') as string;
+
+							if (bulkType === 'simple') {
+								const companiesList = this.getNodeParameter('companiesList', i, {}) as IDataObject;
+								const companies: IDataObject[] = [];
+
+								if (companiesList.company && Array.isArray(companiesList.company)) {
+									let companyIdCounter = 1;
+									(companiesList.company as IDataObject[]).forEach((company) => {
+										const companyData: IDataObject = {
+											id: String(companyIdCounter++),
+										};
+										
+										// Add either name or domain
+										if (company.name) companyData.name = company.name;
+										if (company.domain) companyData.domain = company.domain;
+
+										if (Object.keys(companyData).length > 1) { // Must have id + identifier
+											companies.push(companyData);
+										}
+									});
+								}
+
+								requestOptions.body = {
+									companies,
+								};
+							} else {
+								// Advanced JSON mode
+								const payloadRaw = this.getNodeParameter(
+									'companiesPayloadJson',
+									i,
+									'{}',
+								) as string;
+
+								let payload: IDataObject;
+								try {
+									payload = JSON.parse(payloadRaw);
+								} catch (e) {
+									throw new Error('Companies Payload (JSON) must be valid JSON.');
+								}
+
+								requestOptions.body = payload;
+							}
+							break;
+						}
 					}
 				}
 
+				// Use httpRequestWithAuthentication to automatically handle auth
+				const response = await this.helpers.httpRequestWithAuthentication.call(
+					this,
+					'lushaApi',
+					requestOptions,
+				);
+
+				let json: IDataObject = response as IDataObject;
+
+				// ===================== FRIENDLY CONTACT ENRICH OUTPUT =====================
+				if (resource === 'contact' && operation === 'enrichSingle') {
+					const simplified = this.getNodeParameter(
+						'contactSimplifiedOutput',
+						i,
+						true,
+					) as boolean;
+
+					if (simplified) {
+						const raw = response as any;
+						const contact = raw?.contact?.data ?? {};
+
+						const primaryEmail = Array.isArray(contact.emailAddresses)
+							? contact.emailAddresses[0]
+							: undefined;
+						const primaryPhone = Array.isArray(contact.phoneNumbers)
+							? contact.phoneNumbers[0]
+							: undefined;
+
+						const company = contact.company ?? {};
+						const location = contact.location ?? {};
+
+						json = {
+							// High-level contact info
+							firstName: contact.firstName ?? '',
+							lastName: contact.lastName ?? '',
+							fullName: contact.fullName ?? '',
+							personId: contact.personId ?? '',
+							jobTitle: contact.jobTitle?.title ?? '',
+							departments: contact.jobTitle?.departments ?? [],
+							seniority: contact.jobTitle?.seniority ?? '',
+
+							// Primary contact channels
+							primaryEmail: primaryEmail?.email ?? '',
+							primaryEmailType: primaryEmail?.emailType ?? '',
+							primaryEmailConfidence: primaryEmail?.emailConfidence ?? '',
+							primaryPhone: primaryPhone?.number ?? '',
+							primaryPhoneType: primaryPhone?.phoneType ?? '',
+							primaryPhoneDoNotCall: primaryPhone?.doNotCall ?? false,
+
+							// Location
+							locationCountry: location.country ?? '',
+							locationCountryIso2: location.country_iso2 ?? '',
+							locationContinent: location.continent ?? '',
+							locationCity: location.city ?? '',
+							locationState: location.state ?? '',
+							locationStateCode: location.state_code ?? '',
+							locationCoordinates: location.location_coordinates ?? [],
+
+							// Social
+							linkedinProfile: contact.socialLinks?.linkedin ?? '',
+
+							// Company basic info
+							companyName: company.name ?? '',
+							companyDomain: company.domain ?? company.fqdn ?? '',
+							companyDescription: company.description ?? '',
+							companyHomepage: company.homepageUrl ?? '',
+							companySize: company.companySize ?? [],
+							revenueRange: company.revenueRange ?? [],
+							companyMainIndustry: company.mainIndustry ?? '',
+							companySubIndustry: company.subIndustry ?? '',
+							companyLogoUrl: company.logoUrl ?? '',
+							companyLinkedin: company.social?.linkedin ?? '',
+							companyCrunchbase: company.social?.crunchbase ?? '',
+
+							// Company location
+							companyLocation: company.location?.rawLocation ?? '',
+							companyLocationCity: company.location?.city ?? '',
+							companyLocationState: company.location?.state ?? '',
+							companyLocationStateCode: company.location?.stateCode ?? '',
+							companyLocationCountry: company.location?.country ?? '',
+							companyLocationCountryIso2: company.location?.countryIso2 ?? '',
+							companyLocationContinent: company.location?.continent ?? '',
+							companyLocationCoordinates:
+								company.location?.locationCoordinates ?? [],
+
+							// Extras
+							specialities: company.specialities ?? [],
+							technologies: (company.technologies ?? []).map(
+								(t: any) => t.name,
+							),
+
+							// Keep everything for debugging / full access
+							raw,
+						};
+					}
+				}
+
+				// ===================== FRIENDLY COMPANY ENRICH OUTPUT =====================
+				if (resource === 'company' && operation === 'enrichSingle') {
+					const simplified = this.getNodeParameter(
+						'companySimplifiedOutput',
+						i,
+						true,
+					) as boolean;
+
+					if (simplified) {
+						const raw = response as any;
+						// company enrich returns the payload directly or under data – cover both cases
+						const company = raw?.data ?? raw;
+
+						const location = company.location ?? {};
+						const social = company.social ?? {};
+
+						json = {
+							companyId: company.id ?? company.companyId ?? '',
+							name: company.name ?? '',
+							domain: company.domain ?? company.fqdn ?? '',
+							description: company.description ?? '',
+							employees: company.employees ?? '',
+							founded: company.founded ?? '',
+							fqdn: company.fqdn ?? '',
+							logoUrl: company.logoUrl ?? '',
+							mainIndustry: company.mainIndustry ?? '',
+							subIndustry: company.subIndustry ?? '',
+							companySize: company.companySize ?? [],
+							revenueRange: company.revenueRange ?? [],
+
+							locationCity: location.city ?? '',
+							locationState: location.state ?? '',
+							locationStateCode: location.stateCode ?? '',
+							locationCountry: location.country ?? '',
+							locationCountryIso2: location.countryIso2 ?? '',
+							locationContinent: location.continent ?? '',
+							locationFullLocation:
+								location.fullLocation ?? location.rawLocation ?? '',
+							locationCoordinates: location.locationCoordinates ?? [],
+
+							linkedinProfile: social.linkedin?.url ?? social.linkedin ?? '',
+							crunchbaseProfile:
+								social.crunchbase?.url ?? social.crunchbase ?? '',
+
+							categories: company.categories ?? [],
+							specialities: company.specialities ?? [],
+							technologies: (company.technologies ?? []).map(
+								(t: any) => t.name,
+							),
+
+							// Funding & intent – keep raw structures
+							funding: company.funding ?? {},
+							intent: company.intent ?? {},
+
+							raw,
+						};
+					}
+				}
+
+				// ===================== HANDLE SEARCH RESULTS =====================
+				if ((resource === 'contact' && operation === 'searchContacts') ||
+					(resource === 'company' && operation === 'searchCompanies')) {
+					const searchResponse = response as any;
+					
+					// Add additional fields for easier workflow usage
+					if (searchResponse.data && Array.isArray(searchResponse.data)) {
+						if (resource === 'contact') {
+							// Extract contact IDs
+							const allContactIds = searchResponse.data.map((item: any) => item.contactId);
+							const visibleContactIds = searchResponse.data
+								.filter((item: any) => item.isShown === true)
+								.map((item: any) => item.contactId);
+							const newContactIds = searchResponse.data
+								.filter((item: any) => item.isShown === false)
+								.map((item: any) => item.contactId);
+							
+							json = {
+								...searchResponse,
+								allContactIds,
+								visibleContactIds,
+								newContactIds,
+							};
+						} else {
+							// Extract company IDs for company search - FIXED to look for id field
+							const allCompanyIds = searchResponse.data.map((item: any) => 
+								item.companyId || item.id || ''
+							).filter((id: string) => id);
+							
+							json = {
+								...searchResponse,
+								allCompanyIds,
+							};
+						}
+					}
+				}
+
+				returnData.push({
+					json,
+					pairedItem: { item: i },
+				});
 			} catch (error) {
 				if (this.continueOnFail()) {
-					const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+					const errorMessage =
+						error instanceof Error ? error.message : 'An error occurred';
 					returnData.push({
-						json: { 
+						json: {
 							error: errorMessage,
-							resource,
-							operation,
-							itemIndex: i 
 						},
 						pairedItem: { item: i },
 					});
@@ -915,642 +2679,4 @@ export class Lusha implements INodeType {
 
 		return [returnData];
 	}
-}
-
-// Single contact enrichment
-async function enrichContact(this: IExecuteFunctions, credentials: any, itemIndex: number): Promise<any> {
-	const params: IDataObject = {};
-	const searchBy = this.getNodeParameter('searchBy', itemIndex, 'nameCompany') as string;
-	const filterBy = this.getNodeParameter('filterBySingle', itemIndex, '') as string;
-	
-	if (searchBy === 'nameCompany') {
-		const firstName = this.getNodeParameter('firstName', itemIndex, '') as string;
-		const lastName = this.getNodeParameter('lastName', itemIndex, '') as string;
-		const companyName = this.getNodeParameter('companyName', itemIndex, '') as string;
-		const companyDomain = this.getNodeParameter('companyDomain', itemIndex, '') as string;
-
-		if (firstName) params.firstName = firstName;
-		if (lastName) params.lastName = lastName;
-		if (companyName) params.companyName = companyName;
-		if (companyDomain) params.companyDomain = companyDomain;
-	} else if (searchBy === 'email') {
-		const email = this.getNodeParameter('email', itemIndex, '') as string;
-		if (email) params.email = email;
-	} else if (searchBy === 'linkedin') {
-		const linkedinUrl = this.getNodeParameter('linkedinUrl', itemIndex, '') as string;
-		if (linkedinUrl) params.linkedinUrl = linkedinUrl;
-	}
-
-	// Add filter parameters
-	if (filterBy === 'emails') {
-		params.revealEmails = true;
-		params.revealPhones = false;
-	} else if (filterBy === 'phones') {
-		params.revealEmails = false;
-		params.revealPhones = true;
-	}
-
-	const options: IHttpRequestOptions = {
-		method: 'GET',
-		url: 'https://api.lusha.com/v2/person',
-		qs: params,
-		headers: {
-			'api_key': credentials.apiKey as string,
-			'Content-Type': 'application/json',
-			'Accept': 'application/json',
-		},
-		json: true,
-	};
-
-	return await this.helpers.httpRequest(options);
-}
-
-// Bulk contact enrichment
-async function enrichContactsBulk(this: IExecuteFunctions, credentials: any, itemIndex: number): Promise<any> {
-	const contactsJson = this.getNodeParameter('contactsJson', itemIndex) as string | object;
-	const filterBy = this.getNodeParameter('filterBy', itemIndex, '') as string;
-	
-	let contacts;
-	
-	// Handle both string JSON and already parsed objects
-	if (typeof contactsJson === 'string') {
-		try {
-			contacts = JSON.parse(contactsJson);
-		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : 'Invalid JSON';
-			throw new Error('Invalid JSON in Contacts field: ' + errorMessage);
-		}
-	} else if (typeof contactsJson === 'object') {
-		contacts = contactsJson;
-	} else {
-		throw new Error('Contacts must be a JSON string or array');
-	}
-
-	// If it's a single object, wrap it in an array
-	if (!Array.isArray(contacts)) {
-		if (typeof contacts === 'object' && contacts !== null) {
-			contacts = [contacts];
-		} else {
-			throw new Error('Contacts must be an array or object');
-		}
-	}
-
-	if (contacts.length > 100) {
-		throw new Error('Maximum 100 contacts allowed per request');
-	}
-
-	// Ensure each contact has required fields
-	const validatedContacts = contacts.map((contact: any, index: number) => {
-		if (!contact.contactId) {
-			contact.contactId = String(index + 1);
-		}
-		return contact;
-	});
-
-	const requestBody: IDataObject = {
-		contacts: validatedContacts
-	};
-
-	// Add metadata if filtering is requested
-	if (filterBy === 'emails') {
-		requestBody.metadata = {
-			revealEmails: true,
-			revealPhones: false
-		};
-	} else if (filterBy === 'phones') {
-		requestBody.metadata = {
-			revealEmails: false,
-			revealPhones: true
-		};
-	}
-
-	const options: IHttpRequestOptions = {
-		method: 'POST',
-		url: 'https://api.lusha.com/v2/person',
-		body: requestBody,
-		headers: {
-			'api_key': credentials.apiKey as string,
-			'Content-Type': 'application/json',
-			'Accept': 'application/json',
-		},
-		json: true,
-	};
-
-	return await this.helpers.httpRequest(options);
-}
-
-// Single company enrichment
-async function enrichCompany(this: IExecuteFunctions, credentials: any, itemIndex: number): Promise<any> {
-	const params: IDataObject = {};
-	const searchBy = this.getNodeParameter('companySearchBy', itemIndex, 'domain') as string;
-	
-	if (searchBy === 'domain') {
-		const domain = this.getNodeParameter('domain', itemIndex, '') as string;
-		if (domain) params.domain = domain;
-	} else if (searchBy === 'name') {
-		const company = this.getNodeParameter('company', itemIndex, '') as string;
-		if (company) params.company = company;
-	}
-
-	const options: IHttpRequestOptions = {
-		method: 'GET',
-		url: 'https://api.lusha.com/company',
-		qs: params,
-		headers: {
-			'api_key': credentials.apiKey as string,
-			'Content-Type': 'application/json',
-			'Accept': 'application/json',
-		},
-		json: true,
-	};
-
-	return await this.helpers.httpRequest(options);
-}
-
-// Bulk company enrichment
-async function enrichCompaniesBulk(this: IExecuteFunctions, credentials: any, itemIndex: number): Promise<any> {
-	const companiesJson = this.getNodeParameter('companiesJson', itemIndex) as string | object;
-	
-	let companies;
-	
-	// Handle both string JSON and already parsed objects
-	if (typeof companiesJson === 'string') {
-		try {
-			companies = JSON.parse(companiesJson);
-		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : 'Invalid JSON';
-			throw new Error('Invalid JSON in Companies field: ' + errorMessage);
-		}
-	} else if (typeof companiesJson === 'object') {
-		companies = companiesJson;
-	} else {
-		throw new Error('Companies must be a JSON string or array');
-	}
-
-	// If it's a single object, wrap it in an array
-	if (!Array.isArray(companies)) {
-		if (typeof companies === 'object' && companies !== null) {
-			companies = [companies];
-		} else {
-			throw new Error('Companies must be an array or object');
-		}
-	}
-
-	if (companies.length > 100) {
-		throw new Error('Maximum 100 companies allowed per request');
-	}
-
-	const requestBody: IDataObject = {
-		companies: companies
-	};
-
-	const options: IHttpRequestOptions = {
-		method: 'POST',
-		url: 'https://api.lusha.com/bulk/company',
-		body: requestBody,
-		headers: {
-			'api_key': credentials.apiKey as string,
-			'Content-Type': 'application/json',
-			'Accept': 'application/json',
-		},
-		json: true,
-	};
-
-	return await this.helpers.httpRequest(options);
-}
-
-// Prospecting: Search contacts with user-friendly filters
-async function searchContacts(this: IExecuteFunctions, credentials: any, itemIndex: number): Promise<any> {
-	const page = this.getNodeParameter('page', itemIndex, 0) as number;
-	const size = this.getNodeParameter('size', itemIndex, 40) as number;
-	const contactFilters = this.getNodeParameter('contactFilters', itemIndex, {}) as IDataObject;
-	const companyFilters = this.getNodeParameter('companyFilters', itemIndex, {}) as IDataObject;
-
-	// Build the filters object
-	const filters: IDataObject = {};
-
-	// Process contact filters
-	if (Object.keys(contactFilters).length > 0) {
-		filters.contacts = { include: {} } as IDataObject;
-		const contactsObj = filters.contacts as IDataObject;
-		const include = contactsObj.include as IDataObject;
-
-		if (contactFilters.jobTitles) {
-			const titles = (contactFilters.jobTitles as string).split(',').map(t => t.trim()).filter(t => t);
-			if (titles.length) include.jobTitles = titles;
-		}
-
-		if (contactFilters.departments && (contactFilters.departments as string[]).length) {
-			include.departments = contactFilters.departments;
-		}
-
-		if (contactFilters.seniority && (contactFilters.seniority as number[]).length) {
-			include.seniority = contactFilters.seniority;
-		}
-
-		if (contactFilters.existingDataPoints && (contactFilters.existingDataPoints as string[]).length) {
-			include.existing_data_points = contactFilters.existingDataPoints;
-		}
-
-		// Handle locations
-		const locations: IDataObject[] = [];
-		if (contactFilters.countries && (contactFilters.countries as string[]).length) {
-			(contactFilters.countries as string[]).forEach(country => {
-				locations.push({ country });
-			});
-		}
-		if (contactFilters.states) {
-			const states = (contactFilters.states as string).split(',').map(s => s.trim()).filter(s => s);
-			states.forEach(state => {
-				locations.push({ state });
-			});
-		}
-		if (contactFilters.cities) {
-			const cities = (contactFilters.cities as string).split(',').map(c => c.trim()).filter(c => c);
-			cities.forEach(city => {
-				locations.push({ city });
-			});
-		}
-		if (locations.length) {
-			include.locations = locations;
-		}
-	}
-
-	// Process company filters
-	if (Object.keys(companyFilters).length > 0) {
-		filters.companies = { include: {} } as IDataObject;
-		const companiesObj = filters.companies as IDataObject;
-		const include = companiesObj.include as IDataObject;
-
-		if (companyFilters.names) {
-			const names = (companyFilters.names as string).split(',').map(n => n.trim()).filter(n => n);
-			if (names.length) include.names = names;
-		}
-
-		if (companyFilters.domains) {
-			const domains = (companyFilters.domains as string).split(',').map(d => d.trim()).filter(d => d);
-			if (domains.length) include.domains = domains;
-		}
-
-		if (companyFilters.employeeCountRanges && (companyFilters.employeeCountRanges as string[]).length) {
-			include.sizes = (companyFilters.employeeCountRanges as string[]).map(range => {
-				const parts = range.split('-');
-				if (parts.length === 1 && parts[0].includes('+')) {
-					return {
-						min: parseInt(parts[0].replace('+', '')),
-						max: 999999
-					};
-				}
-				return {
-					min: parseInt(parts[0]),
-					max: parseInt(parts[1])
-				};
-			});
-		}
-
-		if (companyFilters.industries && (companyFilters.industries as number[]).length) {
-			include.mainIndustriesIds = companyFilters.industries;
-		}
-
-		if (companyFilters.subIndustries && (companyFilters.subIndustries as number[]).length) {
-			include.subIndustriesIds = companyFilters.subIndustries;
-		}
-
-		const revenueMin = companyFilters.revenueMin as number;
-		const revenueMax = companyFilters.revenueMax as number;
-		if (revenueMin > 0 || revenueMax > 0) {
-			const revenues: IDataObject[] = [];
-			revenues.push({
-				min: revenueMin || 1,
-				max: revenueMax || 999999999999
-			});
-			include.revenues = revenues;
-		}
-
-		// Company locations
-		if (companyFilters.companyCountries && (companyFilters.companyCountries as string[]).length) {
-			const locations: IDataObject[] = [];
-			(companyFilters.companyCountries as string[]).forEach(country => {
-				locations.push({ country });
-			});
-			include.locations = locations;
-		}
-
-		if (companyFilters.sicCodes) {
-			const codes = (companyFilters.sicCodes as string).split(',').map(c => c.trim()).filter(c => c);
-			if (codes.length) include.sics = codes;
-		}
-
-		if (companyFilters.naicsCodes) {
-			const codes = (companyFilters.naicsCodes as string).split(',').map(c => c.trim()).filter(c => c);
-			if (codes.length) include.naics = codes;
-		}
-
-		if (companyFilters.technologies) {
-			const techs = (companyFilters.technologies as string).split(',').map(t => t.trim()).filter(t => t);
-			if (techs.length) include.technologies = techs;
-		}
-
-		if (companyFilters.intentTopics) {
-			const topics = (companyFilters.intentTopics as string).split(',').map(t => t.trim()).filter(t => t);
-			if (topics.length) include.intentTopics = topics;
-		}
-	}
-
-	const requestBody: IDataObject = {
-		pages: {
-			page,
-			size
-		},
-		filters
-	};
-
-	const options: IHttpRequestOptions = {
-		method: 'POST',
-		url: 'https://api.lusha.com/prospecting/contact/search',
-		body: requestBody,
-		headers: {
-			'api_key': credentials.apiKey as string,
-			'Content-Type': 'application/json',
-			'Accept': 'application/json',
-		},
-		json: true,
-	};
-
-	const response = await this.helpers.httpRequest(options);
-
-	// Add helpful fields
-	if (response && response.data) {
-		const totalResults = response.totalResults || 0;
-		const pageSize = response.pageLength || size;
-		const totalPages = Math.ceil(totalResults / pageSize);
-		const currentPage = response.currentPage || page;
-
-		response.totalPages = totalPages;
-		response.isFirstPage = currentPage === 0;
-		response.isLastPage = currentPage >= totalPages - 1;
-		
-		// Extract contact IDs for easy use
-		response.allContactIds = response.data.map((c: any) => c.contactId);
-		response.visibleContactIds = response.data.filter((c: any) => c.isShown).map((c: any) => c.contactId);
-		response.newContactIds = response.data.filter((c: any) => !c.isShown).map((c: any) => c.contactId);
-	}
-
-	return response;
-}
-
-// Prospecting: Enrich contacts with selection options
-async function enrichProspectingContacts(this: IExecuteFunctions, credentials: any, itemIndex: number): Promise<any> {
-	const requestId = this.getNodeParameter('requestId', itemIndex) as string;
-	const selectionType = this.getNodeParameter('selectionType', itemIndex, 'custom') as string;
-	
-	let contactIds: string[] = [];
-
-	// Get contact IDs based on selection type
-	if (selectionType === 'custom') {
-		const contactIdsString = this.getNodeParameter('contactIds', itemIndex, '') as string;
-		contactIds = contactIdsString.split(',').map(id => id.trim()).filter(id => id);
-	} else {
-		// Get the input data from previous node (search results)
-		const inputData = this.getInputData()[itemIndex];
-		
-		if (inputData && inputData.json) {
-			const searchResults = inputData.json as any;
-			
-			if (selectionType === 'all' && searchResults.allContactIds) {
-				contactIds = searchResults.allContactIds;
-			} else if (selectionType === 'new' && searchResults.newContactIds) {
-				contactIds = searchResults.newContactIds;
-			} else if (selectionType === 'revealed' && searchResults.visibleContactIds) {
-				contactIds = searchResults.visibleContactIds;
-			}
-		}
-	}
-
-	if (!requestId) {
-		throw new Error('Request ID is required');
-	}
-
-	if (!contactIds.length) {
-		throw new Error('No contact IDs found for enrichment');
-	}
-
-	const requestBody: IDataObject = {
-		requestId,
-		contactIds
-	};
-
-	const options: IHttpRequestOptions = {
-		method: 'POST',
-		url: 'https://api.lusha.com/prospecting/contact/enrich',
-		body: requestBody,
-		headers: {
-			'api_key': credentials.apiKey as string,
-			'Content-Type': 'application/json',
-			'Accept': 'application/json',
-		},
-		json: true,
-	};
-
-	return await this.helpers.httpRequest(options);
-}
-
-// Prospecting: Search companies
-async function searchCompanies(this: IExecuteFunctions, credentials: any, itemIndex: number): Promise<any> {
-	const page = this.getNodeParameter('page', itemIndex, 0) as number;
-	const size = this.getNodeParameter('size', itemIndex, 40) as number;
-	const companyFilters = this.getNodeParameter('companyFilters', itemIndex, {}) as IDataObject;
-
-	// Build the filters object
-	const filters: IDataObject = {};
-
-	// Process company filters
-	if (Object.keys(companyFilters).length > 0) {
-		filters.companies = { include: {} } as IDataObject;
-		const companiesObj = filters.companies as IDataObject;
-		const include = companiesObj.include as IDataObject;
-
-		if (companyFilters.names) {
-			const names = (companyFilters.names as string).split(',').map(n => n.trim()).filter(n => n);
-			if (names.length) include.names = names;
-		}
-
-		if (companyFilters.domains) {
-			const domains = (companyFilters.domains as string).split(',').map(d => d.trim()).filter(d => d);
-			if (domains.length) include.domains = domains;
-		}
-
-		if (companyFilters.employeeCountRanges && (companyFilters.employeeCountRanges as string[]).length) {
-			include.sizes = (companyFilters.employeeCountRanges as string[]).map(range => {
-				const parts = range.split('-');
-				if (parts.length === 1 && parts[0].includes('+')) {
-					return {
-						min: parseInt(parts[0].replace('+', '')),
-						max: 999999
-					};
-				}
-				return {
-					min: parseInt(parts[0]),
-					max: parseInt(parts[1])
-				};
-			});
-		}
-
-		if (companyFilters.industries && (companyFilters.industries as number[]).length) {
-			include.mainIndustriesIds = companyFilters.industries;
-		}
-
-		if (companyFilters.subIndustries && (companyFilters.subIndustries as number[]).length) {
-			include.subIndustriesIds = companyFilters.subIndustries;
-		}
-
-		const revenueMin = companyFilters.revenueMin as number;
-		const revenueMax = companyFilters.revenueMax as number;
-		if (revenueMin > 0 || revenueMax > 0) {
-			const revenues: IDataObject[] = [];
-			revenues.push({
-				min: revenueMin || 1,
-				max: revenueMax || 999999999999
-			});
-			include.revenues = revenues;
-		}
-
-		// Company locations
-		if (companyFilters.companyCountries && (companyFilters.companyCountries as string[]).length) {
-			const locations: IDataObject[] = [];
-			(companyFilters.companyCountries as string[]).forEach(country => {
-				locations.push({ country });
-			});
-			include.locations = locations;
-		}
-
-		if (companyFilters.sicCodes) {
-			const codes = (companyFilters.sicCodes as string).split(',').map(c => c.trim()).filter(c => c);
-			if (codes.length) include.sics = codes;
-		}
-
-		if (companyFilters.naicsCodes) {
-			const codes = (companyFilters.naicsCodes as string).split(',').map(c => c.trim()).filter(c => c);
-			if (codes.length) include.naics = codes;
-		}
-
-		if (companyFilters.technologies) {
-			const techs = (companyFilters.technologies as string).split(',').map(t => t.trim()).filter(t => t);
-			if (techs.length) include.technologies = techs;
-		}
-
-		if (companyFilters.intentTopics) {
-			const topics = (companyFilters.intentTopics as string).split(',').map(t => t.trim()).filter(t => t);
-			if (topics.length) include.intentTopics = topics;
-		}
-	}
-
-	const requestBody: IDataObject = {
-		pages: {
-			page,
-			size
-		},
-		filters
-	};
-
-	const options: IHttpRequestOptions = {
-		method: 'POST',
-		url: 'https://api.lusha.com/prospecting/company/search',
-		body: requestBody,
-		headers: {
-			'api_key': credentials.apiKey as string,
-			'Content-Type': 'application/json',
-			'Accept': 'application/json',
-		},
-		json: true,
-	};
-
-	const response = await this.helpers.httpRequest(options);
-
-	// Add helpful fields
-	if (response && response.data) {
-		const totalResults = response.totalResults || 0;
-		const pageSize = response.pageLength || size;
-		const totalPages = Math.ceil(totalResults / pageSize);
-		const currentPage = response.currentPage || page;
-
-		response.totalPages = totalPages;
-		response.isFirstPage = currentPage === 0;
-		response.isLastPage = currentPage >= totalPages - 1;
-		
-		// Extract company IDs for easy use
-		if (Array.isArray(response.data) && response.data.length > 0) {
-			response.allCompanyIds = response.data
-				.map((c: any) => {
-					// Company ID field is called "id"
-					const id = c.id;
-					if (!id) {
-						console.warn('No ID found for company:', c);
-					}
-					return String(id);
-				})
-				.filter((id: string) => id && id !== 'undefined');
-		} else {
-			response.allCompanyIds = [];
-		}
-	}
-
-	return response;
-}
-
-// Prospecting: Enrich companies
-async function enrichProspectingCompanies(this: IExecuteFunctions, credentials: any, itemIndex: number): Promise<any> {
-	const requestId = this.getNodeParameter('requestId', itemIndex) as string;
-	const selectionType = this.getNodeParameter('companySelectionType', itemIndex, 'custom') as string;
-	
-	let companyIds: string[] = [];
-
-	// Get company IDs based on selection type
-	if (selectionType === 'custom') {
-		const companyIdsString = this.getNodeParameter('companyIds', itemIndex, '') as string;
-		// Split by comma and clean up each ID
-		companyIds = companyIdsString
-			.split(',')
-			.map(id => id.trim())
-			.filter(id => id && id.length > 0);
-	} else if (selectionType === 'all') {
-		// Get the input data from previous node (search results)
-		const inputData = this.getInputData()[itemIndex];
-		
-		if (inputData && inputData.json) {
-			const searchResults = inputData.json as any;
-			
-			if (searchResults.allCompanyIds && Array.isArray(searchResults.allCompanyIds)) {
-				// Ensure each ID is a string and properly separated
-				companyIds = searchResults.allCompanyIds.map((id: any) => String(id));
-			}
-		}
-	}
-
-	if (!requestId) {
-		throw new Error('Request ID is required');
-	}
-
-	if (!companyIds.length) {
-	throw new Error('No company IDs found for enrichment');
-	}
-
-	const requestBody: IDataObject = {
-		requestId,
-		companiesIds: companyIds
-	};
-
-	const options: IHttpRequestOptions = {
-		method: 'POST',
-		url: 'https://api.lusha.com/prospecting/company/enrich',
-		body: requestBody,
-		headers: {
-			'api_key': credentials.apiKey as string,
-			'Content-Type': 'application/json',
-			'Accept': 'application/json',
-		},
-		json: true,
-	};
-
-	return await this.helpers.httpRequest(options);
 }

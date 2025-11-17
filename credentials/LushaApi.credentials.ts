@@ -3,13 +3,12 @@ import {
     ICredentialTestRequest,
     ICredentialType,
     INodeProperties,
- } from 'n8n-workflow';
- 
- export class LushaApi implements ICredentialType {
+} from 'n8n-workflow';
+
+export class LushaApi implements ICredentialType {
     name = 'lushaApi';
     displayName = 'Lusha API';
-    documentationUrl = 'https://docs.lusha.com/';
-    
+    documentationUrl = 'https://docs.lusha.com/apis/openapi';
     properties: INodeProperties[] = [
         {
             displayName: 'API Key',
@@ -20,10 +19,11 @@ import {
             },
             default: '',
             required: true,
-            description: 'Your Lusha API key. You can find it in your Lusha Dashboard under API settings.',
+            placeholder: 'Enter your Lusha API key',
+            description: 'Your Lusha API key from the Lusha dashboard',
         },
     ];
- 
+    
     authenticate: IAuthenticateGeneric = {
         type: 'generic',
         properties: {
@@ -32,12 +32,16 @@ import {
             },
         },
     };
- 
+    
+    // Add a test endpoint to verify the credential works
     test: ICredentialTestRequest = {
         request: {
             baseURL: 'https://api.lusha.com',
-            url: '/person',
+            url: '/v2/person',  // or any lightweight endpoint
             method: 'GET',
+            qs: {
+                email: 'carolina.portela@lusha.com'  // Add a dummy parameter that won't consume credits
+            },
         },
     };
- }
+}

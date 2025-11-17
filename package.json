@@ -1,42 +1,17 @@
 {
   "name": "n8n-nodes-lusha",
-  "version": "1.0.0",
-  "description": "Complete Lusha API integration for n8n with contact enrichment, company enrichment, and prospecting capabilities",
-  "keywords": [
-    "n8n-community-node-package",
-    "n8n",
-    "lusha",
-    "contact-enrichment",
-    "lead-generation",
-    "prospecting",
-    "crm",
-    "sales",
-    "b2b",
-    "data-enrichment"
-  ],
+  "version": "1.0.1",
+  "description": "Complete Lusha API integration for n8n",
+  "keywords": ["n8n-community-node-package"],
   "license": "MIT",
-  "homepage": "https://github.com/lusha-oss/n8n-nodes-lusha",
   "author": {
     "name": "Carolina Portela",
     "email": "carolina.portela@lusha.com"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/lusha-oss/n8n-nodes-lusha.git"
-  },
-  "bugs": {
-    "url": "https://github.com/lusha-oss/n8n-nodes-lusha/issues"
-  },
   "main": "index.js",
   "scripts": {
     "build": "tsc && gulp build:icons",
-    "dev": "tsc --watch",
-    "format": "prettier nodes credentials --write",
-    "lint": "eslint nodes/**/*.ts credentials/**/*.ts --ext .ts",
-    "lintfix": "eslint nodes/**/*.ts credentials/**/*.ts --ext .ts --fix",
-    "prepublishOnly": "npm run build && npm run lint -s",
-    "test": "jest",
-    "test:watch": "jest --watch"
+    "dev": "tsc --watch"
   },
   "files": [
     "dist"
@@ -51,22 +26,12 @@
     ]
   },
   "devDependencies": {
-    "@types/jest": "^29.5.0",
-    "@types/node": "^18.15.0",
-    "@typescript-eslint/parser": "^5.57.0",
-    "eslint": "^8.37.0",
-    "eslint-plugin-n8n-nodes-base": "^1.15.0",
-    "gulp": "^5.0.1",
-    "jest": "^29.5.0",
+    "typescript": "^4.9.0",
     "n8n-workflow": "*",
-    "prettier": "^2.8.0",
-    "ts-jest": "^29.1.0",
-    "typescript": "^4.9.0"
+    "gulp": "^5.0.0",
+    "@types/node": "^18.15.0"
   },
   "peerDependencies": {
     "n8n-workflow": "*"
-  },
-  "engines": {
-    "node": ">=16.0.0"
   }
 }
