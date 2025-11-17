@@ -1,8 +1,26 @@
 {
+<<<<<<< HEAD
   "name": "n8n-nodes-lusha",
   "version": "1.0.1",
   "description": "Complete Lusha API integration for n8n",
   "keywords": ["n8n-community-node-package"],
+=======
+  "name": "@lusha-org/n8n-nodes-lusha",
+  "version": "1.0.0",
+  "description": "Complete Lusha API integration for n8n with contact enrichment, company enrichment, and prospecting capabilities",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "lusha",
+    "contact-enrichment",
+    "lead-generation",
+    "prospecting",
+    "crm",
+    "sales",
+    "b2b",
+    "data-enrichment"
+  ],
+>>>>>>> d83b3b7c9f7a8c976577b026f0e2c11cbffe613e
   "license": "MIT",
   "author": {
     "name": "Carolina Portela",
