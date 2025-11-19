@@ -1,4 +1,4 @@
-ximport {
+import {
     IAuthenticateGeneric,
     ICredentialTestRequest,
     ICredentialType,
