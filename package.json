@@ -19,6 +19,10 @@
     "name": "Carolina Portela",
     "email": "carolina.portela@lusha.com"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lusha-oss/n8n-nodes-lusha"
+  },
   "main": "index.js",
   "scripts": {
     "build": "tsc && gulp build:icons",
