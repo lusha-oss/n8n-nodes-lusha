@@ -60,7 +60,11 @@ jobs:
 
       - name: Generate checksums
         run: |
-          tar -czf package.tgz .
+          tar --exclude=./package.tgz \
+              --exclude=.git \
+              --exclude=.github \
+              -czf package.tgz .
           sha256sum package.tgz > package.sha256
+
 
 
