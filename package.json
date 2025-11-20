@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-lusha",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Complete Lusha API integration for n8n with contact enrichment, company enrichment, and prospecting capabilities",
   "keywords": [
     "n8n-community-node-package",
