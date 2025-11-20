@@ -11,7 +11,6 @@ We provide security updates for the following versions:
 | Version | Supported |
 | ------- | --------- |
 | 1.x.x   | ✅        |
-| < 1.0.0 | ❌        |
 
 ## Reporting Security Vulnerabilities
 
