@@ -42,7 +42,7 @@ jobs:
         with:
           name: build-output
           path: |
-            dist/**
+            dist/
             package.json
             README.md
             LICENSE
