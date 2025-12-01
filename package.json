@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/lusha-oss/n8n-nodes-lusha"
+    "url": "git+https://github.com/lusha-oss/n8n-nodes-lusha.git"
   },
   "main": "index.js",
   "scripts": {
