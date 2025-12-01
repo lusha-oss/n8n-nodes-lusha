@@ -60,8 +60,6 @@ jobs:
 
       - name: Generate checksums
         run: |
-          FILE=$(npm pack)
-          sha256sum "$FILE" > "$FILE.sha256"
-
-
-
+          FILE="$(npm pack --silent)"
+          echo "Packed file: $FILE"
+          sha256sum "$FILE" > "${FILE}.sha256"
