@@ -60,11 +60,8 @@ jobs:
 
       - name: Generate checksums
         run: |
-          tar --exclude=./package.tgz \
-              --exclude=.git \
-              --exclude=.github \
-              -czf package.tgz .
-          sha256sum package.tgz > package.sha256
+          FILE=$(npm pack)
+          sha256sum "$FILE" > "$FILE.sha256"
 
 
 
