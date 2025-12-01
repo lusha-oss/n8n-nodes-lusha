@@ -16,8 +16,7 @@
     "types": ["node"]
   },
   "include": [
-    "nodes/**/*.ts",
-    "credentials/**/*.ts"
+    "src/**/*.ts"
   ],
   "exclude": [
     "node_modules",
