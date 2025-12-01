@@ -1,35 +1,96 @@
-publish-npm:
-  needs: build
-  runs-on: ubuntu-latest
-  permissions:
-    contents: read
-    packages: write
-    id-token: write
+name: Publish n8n Package
 
-  steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+on:
+  push:
+    branches:
+      - main
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
-        registry-url: https://registry.npmjs.org/
-        cache: 'npm'
+permissions:
+  contents: read
+  id-token: write
+  packages: write
 
-    - name: Install dependencies
-      run: npm ci
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-    - name: Build package
-      run: npm run build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Publish package
-      run: npm publish --provenance --access public
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_ORG_TOKEN }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
 
-    - name: Generate checksums
-      run: |
-        FILE="$(npm pack --silent)"
-        echo "Packed file: $FILE"
-        sha256sum "$FILE" > "${FILE}.sha256"
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Security audit
+        run: npm audit --audit-level=moderate || true
+
+      # Uncomment if you add tests later
+      # - name: Run tests
+      #   run: npm test
+
+      - name: Build package (TypeScript + Gulp)
+        run: npm run build
+
+      - name: Upload built artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            dist/**
+            package.json
+            README.md
+            LICENSE
+
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download built artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: .
+
+      - name: Verify dist directory exists
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ dist folder missing!"
+            exit 1
+          fi
+          echo "✅ dist folder found."
+
+      - name: Publish package to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ORG_TOKEN }}
+
+      - name: Generate checksums
+        run: |
+          FILE="$(npm pack --silent)"
+          echo "Packed file: $FILE"
+          sha256sum "$FILE" > "${FILE}.sha256"
