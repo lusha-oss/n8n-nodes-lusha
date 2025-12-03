@@ -51,7 +51,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+      
+      - name: Build
+        run: npm run build
 
+      - name: Show package contents
+        run: npm pack --dry-run
 
       - name: Publish package
         run: npm publish --provenance --access public
@@ -63,3 +68,10 @@ jobs:
           FILE="$(npm pack --silent)"
           echo "Packed file: $FILE"
           sha256sum "$FILE" > "${FILE}.sha256"
+      - name: Upload package and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package-${{ github.sha }}
+          path: |
+            *.tgz
+            *.tgz.sha256
