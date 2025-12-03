@@ -37,6 +37,9 @@ jobs:
       - name: Build package (TypeScript + Gulp)
         run: npm run build
 
+      - name: Show package contents
+        run: npm pack --dry-run
+
       - name: Upload built artifact
         uses: actions/upload-artifact@v4
         with:
@@ -70,20 +73,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download built artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-output
-          path: .
-
-      - name: Verify dist directory exists
-        run: |
-          if [ ! -d "dist" ]; then
-            echo "❌ dist folder missing!"
-            exit 1
-          fi
-          echo "✅ dist folder found."
-
       - name: Publish package to npm
         run: npm publish --provenance --access public
         env:
@@ -94,3 +83,10 @@ jobs:
           FILE="$(npm pack --silent)"
           echo "Packed file: $FILE"
           sha256sum "$FILE" > "${FILE}.sha256"
+      - name: Upload package and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package-${{ github.sha }}
+          path: |
+            *.tgz
+            *.tgz.sha256
