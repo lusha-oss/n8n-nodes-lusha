@@ -1,53 +1,35 @@
-{
-  "name": "@lusha-org/n8n-nodes-lusha",
-  "version": "1.0.6",
-  "description": "Complete Lusha API integration for n8n with contact enrichment, company enrichment, and prospecting capabilities",
-  "keywords": [
-    "n8n-community-node-package",
-    "n8n",
-    "lusha",
-    "contact-enrichment",
-    "lead-generation",
-    "prospecting",
-    "crm",
-    "sales",
-    "b2b",
-    "data-enrichment"
-  ],
-  "license": "MIT",
-  "author": {
-    "name": "Carolina Portela",
-    "email": "carolina.portela@lusha.com"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/lusha-oss/n8n-nodes-lusha.git"
-  },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "build": "tsc && gulp build:icons",
-    "dev": "tsc --watch"
-  },
-  "files": [
-    "dist"
-  ],
-  "n8n": {
-    "n8nNodesApiVersion": 1,
-    "credentials": [
-      "dist/credentials/LushaApi.credentials.js"
-    ],
-    "nodes": [
-      "dist/nodes/Lusha/Lusha.node.js"
-    ]
-  },
-  "devDependencies": {
-    "@types/node": "^24.10.1",
-    "gulp": "^5.0.0",
-    "n8n-workflow": "^1.119.1",
-    "typescript": "^5.9.3"
-  },
-  "peerDependencies": {
-    "n8n-workflow": "*"
-  }
-}
+publish-npm:
+  needs: build
+  runs-on: ubuntu-latest
+  permissions:
+    contents: read
+    packages: write
+    id-token: write
+
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        registry-url: https://registry.npmjs.org/
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build package
+      run: npm run build
+
+    - name: Publish package
+      run: npm publish --provenance --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_ORG_TOKEN }}
+
+    - name: Generate checksums
+      run: |
+        FILE="$(npm pack --silent)"
+        echo "Packed file: $FILE"
+        sha256sum "$FILE" > "${FILE}.sha256"

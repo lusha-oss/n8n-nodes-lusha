@@ -1,16 +1,19 @@
-name: Node.js Package
+name: Publish n8n Package
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 permissions:
-  contents: read 
+  contents: read
   id-token: write
+  packages: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,15 +30,30 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=moderate || true
 
-     # - name: Run tests
-       # run: npm test
+      # Uncomment if you add tests later
+      # - name: Run tests
+      #   run: npm test
+
+      - name: Build package (TypeScript + Gulp)
+        run: npm run build
+
+      - name: Upload built artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            dist/
+            package.json
+            README.md
+            LICENSE
 
   publish-npm:
     needs: build
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
-      packages: write  # needed for npm publish
+      packages: write
       id-token: write
 
     steps:
@@ -58,7 +76,7 @@ jobs:
       - name: Show package contents
         run: npm pack --dry-run
 
-      - name: Publish package
+      - name: Publish package to npm
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ORG_TOKEN }}
