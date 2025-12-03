@@ -4,7 +4,7 @@ function buildIcons() {
 	// Copy all SVG and PNG files from nodes directory to dist
 	// This ensures the logo appears correctly in n8n
 	return src('src/nodes/**/*.{svg,png,jpg,jpeg,gif,ico}')
-		.pipe(dest('dist/nodes/'));
+		.pipe(dest('dist/src/nodes/'));
 }
 
 exports['build:icons'] = buildIcons;
