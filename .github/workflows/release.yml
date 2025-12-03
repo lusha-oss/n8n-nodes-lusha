@@ -37,6 +37,9 @@ jobs:
       - name: Build package (TypeScript + Gulp)
         run: npm run build
 
+      - name: Show package contents
+        run: npm pack --dry-run
+
       - name: Upload built artifact
         uses: actions/upload-artifact@v4
         with:
@@ -69,12 +72,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-      
-      - name: Build
-        run: npm run build
-
-      - name: Show package contents
-        run: npm pack --dry-run
 
       - name: Publish package to npm
         run: npm publish --provenance --access public
