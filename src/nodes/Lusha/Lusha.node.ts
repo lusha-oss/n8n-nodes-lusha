@@ -215,44 +215,29 @@ export class Lusha implements INodeType {
 						name: 'filterBy',
 						type: 'options',
 						options: [
-							{
-								name: 'No Filter',
-								value: '',
-							},
-							{
-								name: 'Email Addresses',
-								value: 'emailAddresses',
-							},
-							{
-								name: 'Phone Numbers',
-								value: 'phoneNumbers',
-							},
+							{ name: 'No Filter', value: '' },
+							{ name: 'Email Addresses', value: 'emailAddresses' },
+							{ name: 'Phone Numbers', value: 'phoneNumbers' },
 						],
 						default: '',
-						description:
-							'Filter contacts based on the presence of email addresses or phone numbers',
 					},
 					{
 						displayName: 'Reveal Emails',
 						name: 'revealEmails',
 						type: 'boolean',
 						default: false,
-						description: 'Set to true to retrieve email addresses of the contact',
 					},
 					{
 						displayName: 'Reveal Phones',
 						name: 'revealPhones',
 						type: 'boolean',
 						default: false,
-						description: 'Set to true to retrieve phone numbers of the contact',
 					},
 					{
 						displayName: 'Simplified Output',
 						name: 'contactSimplifiedOutput',
 						type: 'boolean',
 						default: true,
-						description:
-							'If enabled, returns a flattened, friendly object plus the raw response under "raw". If disabled, returns the raw API response only.',
 					},
 				],
 			},
@@ -392,69 +377,57 @@ export class Lusha implements INodeType {
 				},
 				description: 'Filter contacts by country',
 			},
-			{
-				displayName: 'States',
-				name: 'states',
-				type: 'string',
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['searchContacts'],
-					},
-				},
-				description: 'States to search in (comma-separated)',
-				placeholder: 'California, New York, Texas',
-			},
-			{
-				displayName: 'Cities',
-				name: 'cities',
-				type: 'string',
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['searchContacts'],
-					},
-				},
-				description: 'Cities to search in (comma-separated)',
-				placeholder: 'San Francisco, New York, London',
-			},
-			{
-				displayName: 'Company Names / Domains',
-				name: 'companyDomains',
-				type: 'string',
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['searchContacts'],
-					},
-				},
-				description: 'Company names and/or domains (comma-separated, e.g., "Lusha, lusha.com")',
-				placeholder: 'Lusha, lusha.com, Microsoft, microsoft.com',
-			},
-			{
-				displayName: 'Existing Data Points',
-				name: 'existingDataPoints',
-				type: 'multiOptions',
-				options: [
-					{ name: 'Work Email', value: 'work_email' },
-					{ name: 'Phone', value: 'phone' },
-					{ name: 'Mobile Phone', value: 'mobile_phone' },
-					{ name: 'Direct Phone', value: 'direct_phone' },
-				],
-				default: [],
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['searchContacts'],
-					},
-				},
-				description: 'Filter contacts that have these data points',
-			},
-
 			// Company filters for contact search
+			{
+			  displayName: 'Search Filters',
+			  name: 'contactSearchFilters',
+			  type: 'collection',
+			  placeholder: 'Add filter',
+			  default: {},
+			  displayOptions: {
+			    show: {
+			      resource: ['contact'],
+			      operation: ['searchContacts'],
+			    },
+			  },
+			  options: [
+				  {
+            displayName: 'States',
+            name: 'states',  // Contact's location state
+            type: 'string',
+            default: '',
+            description: 'States to search in (comma-separated)',
+            placeholder: 'California, New York, Texas',
+        },
+        {
+            displayName: 'Cities',
+            name: 'cities',  // Contact's location city
+            type: 'string',
+            default: '',
+            description: 'Cities to search in (comma-separated)',
+            placeholder: 'San Francisco, New York, London',
+        },
+        {
+            displayName: 'Company Names / Domains',
+            name: 'companyDomains',
+            type: 'string',
+            default: '',
+            description: 'Company names and/or domains (comma-separated, e.g., "Lusha, lusha.com")',
+            placeholder: 'Lusha, lusha.com, Microsoft, microsoft.com',
+        },
+        {
+            displayName: 'Existing Data Points',
+            name: 'existingDataPoints',
+            type: 'multiOptions',
+            options: [
+                { name: 'Work Email', value: 'work_email' },
+                { name: 'Phone', value: 'phone' },
+                { name: 'Mobile Phone', value: 'mobile_phone' },
+                { name: 'Direct Phone', value: 'direct_phone' },
+            ],
+            default: [],
+            description: 'Filter contacts that have these data points',
+        },
 			{
 				displayName: 'Company Employee Count Min',
 				name: 'contactSearchCompanyEmployeeMin',
@@ -471,12 +444,6 @@ export class Lusha implements INodeType {
 					{ name: '10001', value: '10001' },
 				],
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['searchContacts'],
-					},
-				},
 				description: 'Minimum company employee count',
 			},
 			{
@@ -494,12 +461,6 @@ export class Lusha implements INodeType {
 					{ name: '10000', value: '10000' },
 				],
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['searchContacts'],
-					},
-				},
 				description: 'Maximum company employee count',
 			},
 			{
@@ -520,12 +481,6 @@ export class Lusha implements INodeType {
 					{ name: '$10B', value: '10000000000' },
 				],
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['searchContacts'],
-					},
-				},
 				description: 'Filter by minimum company revenue',
 			},
 			{
@@ -545,12 +500,6 @@ export class Lusha implements INodeType {
 					{ name: '$10B', value: '10000000000' },
 				],
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['searchContacts'],
-					},
-				},
 				description: 'Filter by maximum company revenue',
 			},
 			{
@@ -580,12 +529,6 @@ export class Lusha implements INodeType {
 					{ name: 'Wholesale', value: '20' },
 				],
 				default: [],
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['searchContacts'],
-					},
-				},
 				description: 'Filter by company main industries',
 			},
 			{
@@ -752,12 +695,6 @@ export class Lusha implements INodeType {
 					{ name: 'Wholesale Import & Export', value: '139' },
 				],
 				default: [],
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['searchContacts'],
-					},
-				},
 				description: 'Filter by company sub-industries',
 			},
 			{
@@ -777,14 +714,47 @@ export class Lusha implements INodeType {
 					{ name: 'Italy', value: 'Italy' },
 					{ name: 'South Africa', value: 'South Africa' },
 					{ name: 'Mexico', value: 'Mexico' },
+					{ name: 'Turkey', value: 'Turkey' },
+					{ name: 'Sweden', value: 'Sweden' },
+					{ name: 'China', value: 'China' },
+					{ name: 'Indonesia', value: 'Indonesia' },
+					{ name: 'Belgium', value: 'Belgium' },
+					{ name: 'Spain', value: 'Spain' },
+					{ name: 'United Arab Emirates', value: 'United Arab Emirates' },
+					{ name: 'Argentina', value: 'Argentina' },
+					{ name: 'Switzerland', value: 'Switzerland' },
+					{ name: 'Singapore', value: 'Singapore' },
+					{ name: 'Saudi Arabia', value: 'Saudi Arabia' },
+					{ name: 'Ireland', value: 'Ireland' },
+					{ name: 'Colombia', value: 'Colombia' },
+					{ name: 'Chile', value: 'Chile' },
+					{ name: 'Malaysia', value: 'Malaysia' },
+					{ name: 'Egypt', value: 'Egypt' },
+					{ name: 'Nigeria', value: 'Nigeria' },
+					{ name: 'Japan', value: 'Japan' },
+					{ name: 'Hong Kong', value: 'Hong Kong' },
+					{ name: 'Finland', value: 'Finland' },
+					{ name: 'Denmark', value: 'Denmark' },
+					{ name: 'Taiwan', value: 'Taiwan' },
+					{ name: 'Bangladesh', value: 'Bangladesh' },
+					{ name: 'Austria', value: 'Austria' },
+					{ name: 'Czech Republic', value: 'Czech Republic' },
+					{ name: 'Peru', value: 'Peru' },
+					{ name: 'Kenya', value: 'Kenya' },
+					{ name: 'Vietnam', value: 'Vietnam' },
+					{ name: 'Poland', value: 'Poland' },
+					{ name: 'Ukraine', value: 'Ukraine' },
+					{ name: 'Thailand', value: 'Thailand' },
+					{ name: 'South Korea', value: 'South Korea' },
+					{ name: 'Iran', value: 'Iran' },
+					{ name: 'Morocco', value: 'Morocco' },
+					{ name: 'Venezuela', value: 'Venezuela' },
+					{ name: 'Hungary', value: 'Hungary' },
+					{ name: 'Sri Lanka', value: 'Sri Lanka' },
+					{ name: 'New Zealand', value: 'New Zealand' },
+					{ name: 'Portugal', value: 'Portugal' },
 				],
 				default: [],
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['searchContacts'],
-					},
-				},
 				description: 'Filter contacts by company country',
 			},
 			{
@@ -792,12 +762,6 @@ export class Lusha implements INodeType {
 				name: 'contactSearchCompanyStates',
 				type: 'string',
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['searchContacts'],
-					},
-				},
 				description: 'Filter contacts by company states (comma-separated)',
 				placeholder: 'California, New York',
 			},
@@ -806,15 +770,11 @@ export class Lusha implements INodeType {
 				name: 'contactSearchCompanyCities',
 				type: 'string',
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['searchContacts'],
-					},
-				},
 				description: 'Filter contacts by company cities (comma-separated)',
 				placeholder: 'San Francisco, New York',
-			},
+				 }
+			]  
+		},     
 
 			// ===== CONTACT ENRICH FROM SEARCH FIELDS =====
 			{
@@ -922,18 +882,9 @@ export class Lusha implements INodeType {
 						name: 'bulkFilterBy',
 						type: 'options',
 						options: [
-							{
-								name: 'No Filter',
-								value: '',
-							},
-							{
-								name: 'Email Addresses',
-								value: 'emailAddresses',
-							},
-							{
-								name: 'Phone Numbers',
-								value: 'phoneNumbers',
-							},
+							{ name: 'No Filter', value: '' },
+							{ name: 'Email Addresses', value: 'emailAddresses' },
+							{ name: 'Phone Numbers', value: 'phoneNumbers' },
 						],
 						default: '',
 						description:
@@ -1198,16 +1149,23 @@ export class Lusha implements INodeType {
 				description: 'Filter by company countries',
 			},
 			{
+		  displayName: 'Search Filters',
+		  name: 'companySearchFilters',
+		  type: 'collection',
+		  placeholder: 'Add filter',
+		  default: {},
+		  displayOptions: {
+		    show: {
+		      resource: ['company'],
+		      operation: ['searchCompanies'],
+		    },
+		  },
+		  options: [
+			{
 				displayName: 'Company States',
 				name: 'companyStates',
 				type: 'string',
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['company'],
-						operation: ['searchCompanies'],
-					},
-				},
 				description: 'Filter by company states (comma-separated)',
 				placeholder: 'California, New York, Texas',
 			},
@@ -1216,12 +1174,6 @@ export class Lusha implements INodeType {
 				name: 'companyCities',
 				type: 'string',
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['company'],
-						operation: ['searchCompanies'],
-					},
-				},
 				description: 'Filter by company cities (comma-separated)',
 				placeholder: 'San Francisco, New York, London',
 			},
@@ -1241,12 +1193,6 @@ export class Lusha implements INodeType {
 					{ name: '10001', value: '10001' },
 				],
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['company'],
-						operation: ['searchCompanies'],
-					},
-				},
 				description: 'Minimum company employee count',
 			},
 			{
@@ -1264,12 +1210,6 @@ export class Lusha implements INodeType {
 					{ name: '10000', value: '10000' },
 				],
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['company'],
-						operation: ['searchCompanies'],
-					},
-				},
 				description: 'Maximum company employee count',
 			},
 			{
@@ -1299,12 +1239,6 @@ export class Lusha implements INodeType {
 					{ name: 'Wholesale', value: '20' },
 				],
 				default: [],
-				displayOptions: {
-					show: {
-						resource: ['company'],
-						operation: ['searchCompanies'],
-					},
-				},
 				description: 'Filter by main industry',
 			},
 			{
@@ -1471,12 +1405,6 @@ export class Lusha implements INodeType {
 					{ name: 'Wholesale Import & Export', value: '139' },
 				],
 				default: [],
-				displayOptions: {
-					show: {
-						resource: ['company'],
-						operation: ['searchCompanies'],
-					},
-				},
 				description: 'Filter by sub-industries',
 			},
 			{
@@ -1498,12 +1426,6 @@ export class Lusha implements INodeType {
 					{ name: '$100B', value: '100000000000' },
 				],
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['company'],
-						operation: ['searchCompanies'],
-					},
-				},
 				description: 'Minimum annual revenue in USD',
 			},
 			{
@@ -1524,15 +1446,10 @@ export class Lusha implements INodeType {
 					{ name: '$100B', value: '100000000000' },
 				],
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['company'],
-						operation: ['searchCompanies'],
-					},
-				},
 				description: 'Maximum annual revenue in USD',
 			},
-
+		]
+	},
 			// ===== COMPANY ENRICH FROM SEARCH FIELDS =====
 			{
 				displayName: 'Request ID',
@@ -1748,7 +1665,7 @@ export class Lusha implements INodeType {
 
 								if (firstName) requestOptions.qs.firstName = firstName;
 								if (lastName) requestOptions.qs.lastName = lastName;
-
+								
 								// Include both company name and domain if provided
 								if (companyName) requestOptions.qs.companyName = companyName;
 								if (companyDomain) requestOptions.qs.companyDomain = companyDomain;
@@ -1760,30 +1677,30 @@ export class Lusha implements INodeType {
 								requestOptions.qs.linkedinUrl = linkedinUrl;
 							}
 
-							// Add filterBy if specified (from collection)
+							// Additional Options (collection)
 							const filterBy = this.getNodeParameter(
 								'contactEnrichAdditionalOptions.filterBy',
 								i,
 								'',
 							) as string;
-							if (filterBy) {
-								requestOptions.qs.filterBy = filterBy;
-							}
-
-							// Add reveal options only if true (from collection)
+							
+							if (filterBy) requestOptions.qs.filterBy = filterBy;
+							
 							const revealEmails = this.getNodeParameter(
 								'contactEnrichAdditionalOptions.revealEmails',
 								i,
 								false,
 							) as boolean;
+							
 							const revealPhones = this.getNodeParameter(
 								'contactEnrichAdditionalOptions.revealPhones',
 								i,
 								false,
 							) as boolean;
+							
 							if (revealEmails) requestOptions.qs.revealEmails = true;
 							if (revealPhones) requestOptions.qs.revealPhones = true;
-
+							
 							break;
 						}
 
@@ -1794,18 +1711,10 @@ export class Lusha implements INodeType {
 							requestOptions.headers['Content-Type'] = 'application/json';
 							delete requestOptions.qs; // Remove query string for POST
 
-							const page = this.getNodeParameter(
-								'searchAdditionalOptions.page',
-								i,
-								0,
-							) as number;
-							const pageSize = this.getNodeParameter(
-								'searchAdditionalOptions.pageSize',
-								i,
-								50,
-							) as number;
-
 							// Build proper request body structure
+							const page = this.getNodeParameter('searchAdditionalOptions.page', i, 0) as number;
+							const pageSize = this.getNodeParameter('searchAdditionalOptions.pageSize', i, 50) as number;
+							
 							const contactSearchBody: IDataObject = {
 								pages: {
 									page,
@@ -1815,7 +1724,7 @@ export class Lusha implements INodeType {
 									contacts: { include: {} },
 									companies: { include: {} },
 								},
-							};
+							};	
 
 							// Add job titles
 							const jobTitles = this.getNodeParameter('jobTitles', i, '') as string;
@@ -1848,8 +1757,8 @@ export class Lusha implements INodeType {
 
 							// Add locations
 							const countries = this.getNodeParameter('countries', i, []) as string[];
-							const states = this.getNodeParameter('states', i, '') as string;
-							const cities = this.getNodeParameter('cities', i, '') as string;
+							const states = this.getNodeParameter('contactSearchFilters.states', i, '') as string;
+							const cities = this.getNodeParameter('contactSearchFilters.cities', i, '') as string;
 							const locations: IDataObject[] = [];
 
 							if (countries.length) {
@@ -1884,7 +1793,7 @@ export class Lusha implements INodeType {
 
 							// Add existing data points
 							const existingDataPoints = this.getNodeParameter(
-								'existingDataPoints',
+								'contactSearchFilters.existingDataPoints',
 								i,
 								[],
 							) as string[];
@@ -1896,7 +1805,7 @@ export class Lusha implements INodeType {
 
 							// Add company filters (names/domains)
 							const companyDomains = this.getNodeParameter(
-								'companyDomains',
+								'contactSearchFilters.companyDomains',
 								i,
 								'',
 							) as string;
@@ -1915,10 +1824,10 @@ export class Lusha implements INodeType {
 								if (domains.length) companiesInclude.domains = domains;
 								if (names.length) companiesInclude.names = names;
 							}
-
+							
 							// Add company industry filters
 							const companyIndustries = this.getNodeParameter(
-								'contactSearchCompanyMainIndustries',
+								'contactSearchFilters.contactSearchCompanyMainIndustries',
 								i,
 								[],
 							) as string[];
@@ -1927,10 +1836,10 @@ export class Lusha implements INodeType {
 									.companies as IDataObject).include as IDataObject;
 								companiesInclude.mainIndustriesIds = companyIndustries;
 							}
-
+							
 							// Add company sub-industry filters
 							const companySubIndustries = this.getNodeParameter(
-								'contactSearchCompanySubIndustries',
+								'contactSearchFilters.contactSearchCompanySubIndustries',
 								i,
 								[],
 							) as string[];
@@ -1939,72 +1848,70 @@ export class Lusha implements INodeType {
 									.companies as IDataObject).include as IDataObject;
 								companiesInclude.subIndustriesIds = companySubIndustries;
 							}
-
-							// Handle employee count min/max dropdowns
+							
+							// Handle employee count min/max dropdowns (from Search Filters collection)
 							const employeeMin = this.getNodeParameter(
-								'contactSearchCompanyEmployeeMin',
-								i,
-								'',
+							  'contactSearchFilters.contactSearchCompanyEmployeeMin',
+							  i,
+							  '',
 							) as string;
+							
 							const employeeMax = this.getNodeParameter(
-								'contactSearchCompanyEmployeeMax',
-								i,
-								'',
+							  'contactSearchFilters.contactSearchCompanyEmployeeMax',
+							  i,
+							  '',
 							) as string;
-
+							
 							if (employeeMin || employeeMax) {
-								const companiesInclude = ((contactSearchBody.filters as IDataObject)
-									.companies as IDataObject).include as IDataObject;
-
-								const min = employeeMin ? parseInt(employeeMin) : 1;
-								const max = employeeMax ? parseInt(employeeMax) : 999999;
-
-								companiesInclude.sizes = [{ min, max }];
+							  const companiesInclude = ((contactSearchBody.filters as IDataObject)
+							    .companies as IDataObject).include as IDataObject;
+							
+							  const min = employeeMin ? parseInt(employeeMin, 10) : 1;
+							  const max = employeeMax ? parseInt(employeeMax, 10) : 999999;
+							
+							  companiesInclude.sizes = [{ min, max }];
 							}
-
-							// Add company revenue filters
+														// Add company revenue filters
 							const companyRevenueMin = this.getNodeParameter(
-								'contactSearchCompanyRevenueMin',
+								'contactSearchFilters.contactSearchCompanyRevenueMin',
 								i,
 								'',
 							) as string;
 							const companyRevenueMax = this.getNodeParameter(
-								'contactSearchCompanyRevenueMax',
+								'contactSearchFilters.contactSearchCompanyRevenueMax',
 								i,
 								'',
 							) as string;
-
+							
 							if (companyRevenueMin || companyRevenueMax) {
 								const companiesInclude = ((contactSearchBody.filters as IDataObject)
 									.companies as IDataObject).include as IDataObject;
-								const revenues: IDataObject[] = [
-									{
-										min: companyRevenueMin ? parseInt(companyRevenueMin) : 0,
-										max: companyRevenueMax ? parseInt(companyRevenueMax) : 999999999999,
-									},
-								];
+								const revenues: IDataObject[] = [{
+									min: companyRevenueMin ? parseInt(companyRevenueMin) : 0,
+									max: companyRevenueMax ? parseInt(companyRevenueMax) : 999999999999,
+								}];
 								companiesInclude.revenues = revenues;
 							}
-
+							
 							// Add company locations
 							const companyCountries = this.getNodeParameter(
-								'contactSearchCompanyCountries',
+								'contactSearchFilters.contactSearchCompanyCountries',
 								i,
 								[],
 							) as string[];
 							const companyStates = this.getNodeParameter(
-								'contactSearchCompanyStates',
+								'contactSearchFilters.contactSearchCompanyStates',
 								i,
 								'',
 							) as string;
 							const companyCities = this.getNodeParameter(
-								'contactSearchCompanyCities',
+								'contactSearchFilters.contactSearchCompanyCities',
 								i,
 								'',
 							) as string;
-
+							
 							const companyLocations: IDataObject[] = [];
-
+							
 							if (companyCountries.length) {
 								companyCountries.forEach((country) => {
 									companyLocations.push({ country });
@@ -2028,7 +1935,7 @@ export class Lusha implements INodeType {
 										companyLocations.push({ city });
 									});
 							}
-
+							
 							if (companyLocations.length) {
 								const companiesInclude = ((contactSearchBody.filters as IDataObject)
 									.companies as IDataObject).include as IDataObject;
@@ -2044,29 +1951,23 @@ export class Lusha implements INodeType {
 							let requestId = '';
 							const inputData = items[i];
 							const searchData = inputData.json;
-
+							
 							// Try to get requestId from input data first
 							if (searchData.requestId) {
 								requestId = searchData.requestId as string;
 							} else {
 								requestId = this.getNodeParameter('requestId', i) as string;
 							}
-
-							const selectionType = this.getNodeParameter(
-								'contactSelectionType',
-								i,
-								'all',
-							) as string;
+							
+							const selectionType = this.getNodeParameter('contactSelectionType', i, 'all') as string;
 							let contactIds: string[] = [];
-
+							
 							if (selectionType === 'all') {
 								// Use all contact IDs from search results
 								if (searchData.allContactIds && Array.isArray(searchData.allContactIds)) {
 									contactIds = searchData.allContactIds as string[];
 								} else if (searchData.data && Array.isArray(searchData.data)) {
-									contactIds = searchData.data
-										.map((contact: any) => contact.contactId)
-										.filter((id: any) => id);
+									contactIds = searchData.data.map((contact: any) => contact.contactId).filter((id: any) => id);
 								}
 							} else if (selectionType === 'new') {
 								// Use only new contact IDs (where isShown = false)
@@ -2088,9 +1989,7 @@ export class Lusha implements INodeType {
 
 							// Ensure we have valid IDs
 							if (!contactIds.length) {
-								throw new Error(
-									'No contact IDs found. Ensure the search operation returned results.',
-								);
+								throw new Error('No contact IDs found. Ensure the search operation returned results.');
 							}
 
 							requestOptions.url = '/prospecting/contact/enrich';
@@ -2116,11 +2015,7 @@ export class Lusha implements INodeType {
 							const bulkType = this.getNodeParameter('bulkType', i, 'simple') as string;
 
 							if (bulkType === 'simple') {
-								const contactsList = this.getNodeParameter(
-									'contactsList',
-									i,
-									{},
-								) as IDataObject;
+								const contactsList = this.getNodeParameter('contactsList', i, {}) as IDataObject;
 								const contacts: IDataObject[] = [];
 
 								if (contactsList.contact && Array.isArray(contactsList.contact)) {
@@ -2129,7 +2024,7 @@ export class Lusha implements INodeType {
 										const contactData: IDataObject = {
 											contactId: String(contactIdCounter++),
 										};
-
+										
 										// Add only one identifier per contact - prioritize email
 										if (contact.email) {
 											contactData.email = contact.email;
@@ -2138,31 +2033,30 @@ export class Lusha implements INodeType {
 										} else if (contact.fullName) {
 											// Use fullName with companies array structure
 											contactData.fullName = contact.fullName;
-
+											
 											// Build companies array if company info is provided
 											const companies: IDataObject[] = [];
 											if (contact.companyName || contact.companyDomain) {
 												const company: IDataObject = {
 													isCurrent: true, // Default to current company
 												};
-
+												
 												// Use either name or domain
 												if (contact.companyDomain) {
 													company.domain = contact.companyDomain;
 												} else if (contact.companyName) {
 													company.name = contact.companyName;
 												}
-
+												
 												companies.push(company);
 											}
-
+											
 											if (companies.length > 0) {
 												contactData.companies = companies;
 											}
 										}
-
-										if (Object.keys(contactData).length > 1) {
-											// Must have contactId + identifier
+										
+										if (Object.keys(contactData).length > 1) { // Must have contactId + identifier
 											contacts.push(contactData);
 										}
 									});
@@ -2170,26 +2064,27 @@ export class Lusha implements INodeType {
 
 								// Build metadata object (from collection)
 								const metadata: IDataObject = {};
-
+								
 								const filterBy = this.getNodeParameter(
 									'contactBulkAdditionalOptions.bulkFilterBy',
 									i,
 									'',
 								) as string;
-								if (filterBy) {
-									metadata.filterBy = filterBy;
-								}
-
+								
+								if (filterBy) metadata.filterBy = filterBy;
+								
 								const revealEmails = this.getNodeParameter(
 									'contactBulkAdditionalOptions.bulkRevealEmails',
 									i,
 									false,
 								) as boolean;
+								
 								const revealPhones = this.getNodeParameter(
 									'contactBulkAdditionalOptions.bulkRevealPhones',
 									i,
 									false,
 								) as boolean;
+								
 								if (revealEmails) metadata.revealEmails = true;
 								if (revealPhones) metadata.revealPhones = true;
 
@@ -2238,7 +2133,10 @@ export class Lusha implements INodeType {
 								const domain = this.getNodeParameter('domain', i) as string;
 								requestOptions.qs.domain = domain;
 							} else if (companySearchBy === 'name') {
-								const companyName = this.getNodeParameter('companyName', i) as string;
+								const companyName = this.getNodeParameter(
+									'companyName',
+									i,
+								) as string;
 								requestOptions.qs.company = companyName;
 							}
 							break;
@@ -2251,17 +2149,9 @@ export class Lusha implements INodeType {
 							requestOptions.headers['Content-Type'] = 'application/json';
 							delete requestOptions.qs;
 
-							const page = this.getNodeParameter(
-								'searchAdditionalOptions.page',
-								i,
-								0,
-							) as number;
-							const pageSize = this.getNodeParameter(
-								'searchAdditionalOptions.pageSize',
-								i,
-								50,
-							) as number;
-
+							const page = this.getNodeParameter('searchAdditionalOptions.page', i, 0) as number;
+							const pageSize = this.getNodeParameter('searchAdditionalOptions.pageSize', i, 50) as number;
+							
 							const companySearchBody: IDataObject = {
 								pages: {
 									page,
@@ -2302,12 +2192,12 @@ export class Lusha implements INodeType {
 								[],
 							) as string[];
 							const companyStates = this.getNodeParameter(
-								'companyStates',
+								'companySearchFilters.companyStates',
 								i,
 								'',
 							) as string;
 							const companyCities = this.getNodeParameter(
-								'companyCities',
+								'companySearchFilters.companyCities',
 								i,
 								'',
 							) as string;
@@ -2315,9 +2205,7 @@ export class Lusha implements INodeType {
 							const companyLocations: IDataObject[] = [];
 
 							if (companyCountries.length) {
-								companyCountries.forEach((country) =>
-									companyLocations.push({ country }),
-								);
+								companyCountries.forEach((country) => companyLocations.push({ country }));
 							}
 							if (companyStates) {
 								companyStates
@@ -2339,36 +2227,36 @@ export class Lusha implements INodeType {
 
 							// Handle employee count min/max dropdowns
 							const employeeMin = this.getNodeParameter(
-								'companyEmployeeMin',
+								'companySearchFilters.companyEmployeeMin',
 								i,
 								'',
 							) as string;
 							const employeeMax = this.getNodeParameter(
-								'companyEmployeeMax',
+								'companySearchFilters.companyEmployeeMax',
 								i,
 								'',
 							) as string;
-
+							
 							if (employeeMin || employeeMax) {
 								const min = employeeMin ? parseInt(employeeMin) : 1;
 								const max = employeeMax ? parseInt(employeeMax) : 999999;
-
+								
 								companiesInclude.sizes = [{ min, max }];
 							}
 
 							// Main industry IDs
 							const companyMainIndustryIds = this.getNodeParameter(
-								'companyMainIndustryIds',
+								'companySearchFilters.companyMainIndustryIds',
 								i,
 								[],
 							) as string[];
 							if (companyMainIndustryIds.length) {
 								companiesInclude.mainIndustriesIds = companyMainIndustryIds;
 							}
-
+							
 							// Sub-industry IDs
 							const companySubIndustryIds = this.getNodeParameter(
-								'companySubIndustryIds',
+								'companySearchFilters.companySubIndustryIds',
 								i,
 								[],
 							) as string[];
@@ -2378,12 +2266,12 @@ export class Lusha implements INodeType {
 
 							// Revenue min / max - should be "revenues" array
 							const companyRevenueMin = this.getNodeParameter(
-								'companyRevenueMin',
+								'companySearchFilters.companyRevenueMin',
 								i,
 								'',
 							) as string;
 							const companyRevenueMax = this.getNodeParameter(
-								'companyRevenueMax',
+								'companySearchFilters.companyRevenueMax',
 								i,
 								'',
 							) as string;
@@ -2391,19 +2279,19 @@ export class Lusha implements INodeType {
 							if (companyRevenueMin || companyRevenueMax) {
 								const revenues: IDataObject[] = [];
 								const revenueRange: IDataObject = {};
-
+								
 								if (companyRevenueMin) {
 									revenueRange.min = parseInt(companyRevenueMin);
 								} else {
 									revenueRange.min = 0;
 								}
-
+								
 								if (companyRevenueMax) {
 									revenueRange.max = parseInt(companyRevenueMax);
 								} else {
 									revenueRange.max = 999999999999; // Very large number if no max
 								}
-
+								
 								revenues.push(revenueRange);
 								companiesInclude.revenues = revenues;
 							}
@@ -2414,39 +2302,34 @@ export class Lusha implements INodeType {
 
 						case 'enrichFromSearch': {
 							// FIXED: Generate a unique requestId (UUID v4)
-							// eslint-disable-next-line @typescript-eslint/no-var-requires
 							const crypto = require('crypto');
 							const requestId = crypto.randomUUID();
-
+							
 							// Get company IDs from input or parameters
 							const inputData = items[i];
 							const searchData = inputData.json;
-
-							const selectionType = this.getNodeParameter(
-								'companySelectionType',
-								i,
-								'all',
-							) as string;
+							
+							const selectionType = this.getNodeParameter('companySelectionType', i, 'all') as string;
 							let companiesIds: string[] = [];
-
+							
 							if (selectionType === 'all') {
 								// FIXED: Try to get IDs from various possible fields
 								if (searchData.allCompanyIds && Array.isArray(searchData.allCompanyIds)) {
 									companiesIds = searchData.allCompanyIds as string[];
 								} else if (searchData.data && Array.isArray(searchData.data)) {
 									// Check for both companyId and id fields
-									companiesIds = searchData.data
-										.map((company: any) => company.companyId || company.id || '')
-										.filter((id: any) => id);
+									companiesIds = searchData.data.map((company: any) => 
+										company.companyId || company.id || ''
+									).filter((id: any) => id);
 								} else {
 									// Try to get from all input items - check multiple possible fields
 									const allInputItems = this.getInputData();
 									companiesIds = allInputItems
-										.map((item) => {
+										.map(item => {
 											const json = item.json;
 											return json.companyId || json.id || json.company_id || '';
 										})
-										.filter((id) => id) as string[];
+										.filter(id => id) as string[];
 								}
 							} else if (selectionType === 'specific') {
 								const idsInput = this.getNodeParameter('companyIds', i, '') as string;
@@ -2458,9 +2341,7 @@ export class Lusha implements INodeType {
 
 							// Ensure we have valid IDs
 							if (!companiesIds.length) {
-								throw new Error(
-									'No company IDs found. Ensure the search operation returned results or provide company IDs.',
-								);
+								throw new Error('No company IDs found. Ensure the search operation returned results or provide company IDs.');
 							}
 
 							requestOptions.url = '/prospecting/company/enrich';
@@ -2483,18 +2364,10 @@ export class Lusha implements INodeType {
 							requestOptions.headers['Content-Type'] = 'application/json';
 							delete requestOptions.qs;
 
-							const bulkType = this.getNodeParameter(
-								'companyBulkType',
-								i,
-								'simple',
-							) as string;
+							const bulkType = this.getNodeParameter('companyBulkType', i, 'simple') as string;
 
 							if (bulkType === 'simple') {
-								const companiesList = this.getNodeParameter(
-									'companiesList',
-									i,
-									{},
-								) as IDataObject;
+								const companiesList = this.getNodeParameter('companiesList', i, {}) as IDataObject;
 								const companies: IDataObject[] = [];
 
 								if (companiesList.company && Array.isArray(companiesList.company)) {
@@ -2503,13 +2376,12 @@ export class Lusha implements INodeType {
 										const companyData: IDataObject = {
 											id: String(companyIdCounter++),
 										};
-
+										
 										// Add either name or domain
 										if (company.name) companyData.name = company.name;
 										if (company.domain) companyData.domain = company.domain;
 
-										if (Object.keys(companyData).length > 1) {
-											// Must have id + identifier
+										if (Object.keys(companyData).length > 1) { // Must have id + identifier
 											companies.push(companyData);
 										}
 									});
@@ -2697,26 +2569,22 @@ export class Lusha implements INodeType {
 				}
 
 				// ===================== HANDLE SEARCH RESULTS =====================
-				if (
-					(resource === 'contact' && operation === 'searchContacts') ||
-					(resource === 'company' && operation === 'searchCompanies')
-				) {
+				if ((resource === 'contact' && operation === 'searchContacts') ||
+					(resource === 'company' && operation === 'searchCompanies')) {
 					const searchResponse = response as any;
-
+					
 					// Add additional fields for easier workflow usage
 					if (searchResponse.data && Array.isArray(searchResponse.data)) {
 						if (resource === 'contact') {
 							// Extract contact IDs
-							const allContactIds = searchResponse.data.map(
-								(item: any) => item.contactId,
-							);
+							const allContactIds = searchResponse.data.map((item: any) => item.contactId);
 							const visibleContactIds = searchResponse.data
 								.filter((item: any) => item.isShown === true)
 								.map((item: any) => item.contactId);
 							const newContactIds = searchResponse.data
 								.filter((item: any) => item.isShown === false)
 								.map((item: any) => item.contactId);
-
+							
 							json = {
 								...searchResponse,
 								allContactIds,
@@ -2725,10 +2593,10 @@ export class Lusha implements INodeType {
 							};
 						} else {
 							// Extract company IDs for company search - FIXED to look for id field
-							const allCompanyIds = searchResponse.data
-								.map((item: any) => item.companyId || item.id || '')
-								.filter((id: string) => id);
-
+							const allCompanyIds = searchResponse.data.map((item: any) => 
+								item.companyId || item.id || ''
+							).filter((id: string) => id);
+							
 							json = {
 								...searchResponse,
 								allCompanyIds,
