@@ -5,6 +5,7 @@ import {
 	INodeTypeDescription,
 	IHttpRequestOptions,
 	IDataObject,
+	NodeConnectionTypes,
 } from 'n8n-workflow';
 
 export class Lusha implements INodeType {
@@ -19,8 +20,8 @@ export class Lusha implements INodeType {
 		defaults: {
 			name: 'Lusha',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
 		credentials: [
 			{
 				name: 'lushaApi',
