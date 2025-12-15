@@ -236,7 +236,7 @@ This security policy is reviewed and updated regularly. For the latest version a
 
 ---
 
-**Last Updated**: Dec 2025  
-**Next Review**: July 2024
+**Last Updated**: dec 2025  
+**Next Review**: may 2026
 
 For questions about this security policy, please contact [security@lusha.com](mailto:security@lusha.com).
