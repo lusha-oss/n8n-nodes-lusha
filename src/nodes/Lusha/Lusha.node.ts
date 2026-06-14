@@ -2146,6 +2146,7 @@ export class Lusha implements INodeType {
 					method: 'GET',
 					headers: {
 						Accept: 'application/json',
+						prtnr: 'n8n_connector-prod',
 					},
 					qs: {},
 					body: {},
