@@ -33,15 +33,13 @@ export class LushaApi implements ICredentialType {
         },
     };
     
-    // Add a test endpoint to verify the credential works
     test: ICredentialTestRequest = {
         request: {
             baseURL: 'https://api.lusha.com',
-            url: '/v2/person',  // or any lightweight endpoint
-            method: 'GET',
-            qs: {
-                email: 'yoni@lusha.com'  // Add a dummy parameter that won't consume credits
-            },
+            url: '/v3/contacts/search-and-enrich',
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: { contacts: [{ email: 'test@lusha.com' }], reveal: [] },
         },
     };
 }

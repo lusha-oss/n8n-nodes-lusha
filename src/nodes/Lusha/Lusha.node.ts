@@ -63,22 +63,28 @@ export class Lusha implements INodeType {
 				},
 				options: [
 					{
-						name: 'Enrich Single',
-						value: 'enrichSingle',
-						action: 'Enrich a single contact',
-						description: 'Enrich a single contact with additional information',
+						name: 'Enrich Contacts',
+						value: 'enrichBulk',
+						action: 'Enrich contacts',
+						description: 'Enrich one or more contacts with additional information',
 					},
 					{
-						name: 'Enrich Bulk',
-						value: 'enrichBulk',
-						action: 'Enrich contacts in bulk',
-						description: 'Enrich multiple contacts with additional information',
+						name: 'Search and Enrich',
+						value: 'searchAndEnrich',
+						action: 'Search and enrich contacts',
+						description: 'Find and reveal data for 1–100 contacts in a single call',
 					},
 					{
 						name: 'Search Contacts',
 						value: 'searchContacts',
-						action: 'Search for contacts',
-						description: 'Search and discover new contacts based on criteria',
+						action: 'Search for contacts by identifier',
+						description: 'Locate contacts by identifier (name+company, email, LinkedIn URL, or Lusha ID)',
+					},
+					{
+						name: 'Prospect Contacts',
+						value: 'prospectingContacts',
+						action: 'Prospect contacts by ICP filters',
+						description: 'Discover contacts matching your ICP using rich filter criteria',
 					},
 					{
 						name: 'Enrich from Search',
@@ -86,163 +92,221 @@ export class Lusha implements INodeType {
 						action: 'Enrich contacts from search results',
 						description: 'Enrich contacts found through a previous search',
 					},
+					{
+						name: 'Search Lookalikes',
+						value: 'searchLookalikes',
+						action: 'Find lookalike contacts',
+						description: 'Find contacts similar to your seed contacts (5–100 seeds required)',
+					},
 				],
-				default: 'enrichSingle',
+				default: 'enrichBulk',
 			},
 
-			// ===== CONTACT ENRICH SINGLE FIELDS =====
+			// ===== CONTACT SEARCH (identifier-based) FIELDS =====
 			{
-				displayName: 'Search By',
-				name: 'searchBy',
+				displayName: 'Input Mode',
+				name: 'searchContactsInputMode',
 				type: 'options',
+				noDataExpression: true,
 				options: [
 					{
-						name: 'Name and Company',
-						value: 'nameAndCompany',
+						name: 'Simple — Emails / LinkedIn URLs / IDs',
+						value: 'simple',
+						description: 'Paste comma-separated emails, LinkedIn URLs, or Lusha IDs',
 					},
 					{
-						name: 'Email',
-						value: 'email',
-					},
-					{
-						name: 'LinkedIn URL',
-						value: 'linkedinUrl',
+						name: 'Advanced — Full Identifier List',
+						value: 'advanced',
+						description: 'Build a list with full name + company combinations',
 					},
 				],
-				default: 'nameAndCompany',
+				default: 'simple',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['enrichSingle'],
+						operation: ['searchContacts'],
 					},
 				},
 			},
 			{
-				displayName: 'First Name',
-				name: 'firstName',
+				displayName: 'Emails',
+				name: 'searchContactsEmails',
 				type: 'string',
 				default: '',
+				placeholder: 'john@acme.com, jane@example.com',
+				description: 'One or more email addresses, comma-separated',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['enrichSingle'],
-						searchBy: ['nameAndCompany'],
+						operation: ['searchContacts'],
+						searchContactsInputMode: ['simple'],
 					},
 				},
 			},
 			{
-				displayName: 'Last Name',
-				name: 'lastName',
+				displayName: 'LinkedIn URLs',
+				name: 'searchContactsLinkedinUrls',
 				type: 'string',
 				default: '',
+				placeholder: 'https://www.linkedin.com/in/alice, https://www.linkedin.com/in/bob',
+				description: 'One or more LinkedIn profile URLs, comma-separated',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['enrichSingle'],
-						searchBy: ['nameAndCompany'],
+						operation: ['searchContacts'],
+						searchContactsInputMode: ['simple'],
 					},
 				},
 			},
 			{
-				displayName: 'Company Name',
-				name: 'companyName',
+				displayName: 'Lusha IDs',
+				name: 'searchContactsLushaIds',
 				type: 'string',
 				default: '',
+				placeholder: '12345, 67890',
+				description: 'One or more Lusha contact IDs, comma-separated',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['enrichSingle'],
-						searchBy: ['nameAndCompany'],
-					},
-				},
-				description: 'Company name (e.g., Lusha)',
-			},
-			{
-				displayName: 'Company Domain',
-				name: 'companyDomain',
-				type: 'string',
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['enrichSingle'],
-						searchBy: ['nameAndCompany'],
-					},
-				},
-				description: 'Company domain (e.g., lusha.com)',
-			},
-			{
-				displayName: 'Email',
-				name: 'email',
-				type: 'string',
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['enrichSingle'],
-						searchBy: ['email'],
+						operation: ['searchContacts'],
+						searchContactsInputMode: ['simple'],
 					},
 				},
 			},
 			{
-				displayName: 'LinkedIn URL',
-				name: 'linkedinUrl',
-				type: 'string',
-				default: '',
+				displayName: 'Contacts',
+				name: 'searchContactsList',
+				type: 'fixedCollection',
+				typeOptions: { multipleValues: true },
+				placeholder: 'Add Contact',
+				default: { contact: [] },
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['enrichSingle'],
-						searchBy: ['linkedinUrl'],
+						operation: ['searchContacts'],
+						searchContactsInputMode: ['advanced'],
 					},
 				},
+				description: 'List of contacts to search. Each contact needs at least one identifier.',
+				options: [
+					{
+						name: 'contact',
+						displayName: 'Contact',
+						values: [
+							{
+								displayName: 'Client Reference ID',
+								name: 'clientReferenceId',
+								type: 'string',
+								default: '',
+								description: 'Your own reference ID echoed back in the response',
+							},
+							{
+								displayName: 'Lusha ID',
+								name: 'id',
+								type: 'string',
+								default: '',
+								description: 'Lusha contact ID',
+							},
+							{
+								displayName: 'LinkedIn URL',
+								name: 'linkedinUrl',
+								type: 'string',
+								default: '',
+								placeholder: 'https://www.linkedin.com/in/username',
+								description: 'LinkedIn profile URL',
+							},
+							{
+								displayName: 'Email',
+								name: 'email',
+								type: 'string',
+								default: '',
+								placeholder: 'name@company.com',
+								description: 'Email address',
+							},
+							{
+								displayName: 'First Name',
+								name: 'firstName',
+								type: 'string',
+								default: '',
+								description: 'First name (use with Last Name + Company Name or Domain)',
+							},
+							{
+								displayName: 'Last Name',
+								name: 'lastName',
+								type: 'string',
+								default: '',
+								description: 'Last name (use with First Name + Company Name or Domain)',
+							},
+							{
+								displayName: 'Company Name',
+								name: 'companyName',
+								type: 'string',
+								default: '',
+								description: 'Company name (use with First Name + Last Name)',
+							},
+							{
+								displayName: 'Company Domain',
+								name: 'companyDomain',
+								type: 'string',
+								default: '',
+								placeholder: 'lusha.com',
+								description: 'Company domain (use with First Name + Last Name)',
+							},
+						],
+					},
+				],
 			},
 			{
-				displayName: 'Additional Options',
-				name: 'contactEnrichAdditionalOptions',
+				displayName: 'Options',
+				name: 'searchContactsOptions',
 				type: 'collection',
 				placeholder: 'Add option',
 				default: {},
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['enrichSingle'],
+						operation: ['searchContacts'],
 					},
 				},
 				options: [
 					{
-						displayName: 'Filter By',
-						name: 'filterBy',
-						type: 'options',
+						displayName: 'Include Partial Profiles',
+						name: 'includePartialProfiles',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to include contacts where only partial data is available',
+					},
+					{
+						displayName: 'Signal Types',
+						name: 'signalTypes',
+						type: 'multiOptions',
 						options: [
-							{ name: 'No Filter', value: '' },
-							{ name: 'Email Addresses', value: 'emailAddresses' },
-							{ name: 'Phone Numbers', value: 'phoneNumbers' },
+							{ name: 'All Signals', value: 'allSignals' },
+							{ name: 'Promotion', value: 'promotion' },
+							{ name: 'Company Change', value: 'companyChange' },
 						],
+						default: [],
+						description: 'Narrow results to contacts with recent signal activity',
+					},
+					{
+						displayName: 'Signal Start Date',
+						name: 'signalStartDate',
+						type: 'string',
 						default: '',
+						placeholder: '2025-01-01',
+						description: 'Only include signals on or after this date (YYYY-MM-DD)',
 					},
 					{
-						displayName: 'Reveal Emails',
-						name: 'revealEmails',
-						type: 'boolean',
-						default: false,
-					},
-					{
-						displayName: 'Reveal Phones',
-						name: 'revealPhones',
-						type: 'boolean',
-						default: false,
-					},
-					{
-						displayName: 'Simplified Output',
-						name: 'contactSimplifiedOutput',
-						type: 'boolean',
-						default: true,
+						displayName: 'Max Results Per Signal',
+						name: 'maxResultsPerSignal',
+						type: 'number',
+						default: 0,
+						description: 'Maximum number of results per signal type (0 = no limit)',
 					},
 				],
 			},
 
-			// ===== CONTACT SEARCH FIELDS =====
+			// ===== CONTACT PROSPECTING (filter-based) FIELDS =====
 			{
 				displayName: 'Job Titles',
 				name: 'jobTitles',
@@ -251,7 +315,7 @@ export class Lusha implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['searchContacts'],
+						operation: ['prospectingContacts'],
 					},
 				},
 				description: 'Job titles to search for (comma-separated, e.g., CEO, CTO, Manager)',
@@ -283,7 +347,7 @@ export class Lusha implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['searchContacts'],
+						operation: ['prospectingContacts'],
 					},
 				},
 			},
@@ -307,7 +371,7 @@ export class Lusha implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['searchContacts'],
+						operation: ['prospectingContacts'],
 					},
 				},
 			},
@@ -316,66 +380,75 @@ export class Lusha implements INodeType {
 				name: 'countries',
 				type: 'multiOptions',
 				options: [
-					{ name: 'United States', value: 'United States' },
-					{ name: 'India', value: 'India' },
-					{ name: 'United Kingdom', value: 'United Kingdom' },
-					{ name: 'Brazil', value: 'Brazil' },
-					{ name: 'Canada', value: 'Canada' },
-					{ name: 'Australia', value: 'Australia' },
-					{ name: 'France', value: 'France' },
-					{ name: 'Germany', value: 'Germany' },
-					{ name: 'Netherlands', value: 'Netherlands' },
-					{ name: 'Italy', value: 'Italy' },
-					{ name: 'South Africa', value: 'South Africa' },
-					{ name: 'Mexico', value: 'Mexico' },
-					{ name: 'Turkey', value: 'Turkey' },
-					{ name: 'Sweden', value: 'Sweden' },
-					{ name: 'China', value: 'China' },
-					{ name: 'Indonesia', value: 'Indonesia' },
-					{ name: 'Belgium', value: 'Belgium' },
-					{ name: 'Spain', value: 'Spain' },
-					{ name: 'United Arab Emirates', value: 'United Arab Emirates' },
-					{ name: 'Argentina', value: 'Argentina' },
-					{ name: 'Switzerland', value: 'Switzerland' },
-					{ name: 'Singapore', value: 'Singapore' },
-					{ name: 'Saudi Arabia', value: 'Saudi Arabia' },
-					{ name: 'Ireland', value: 'Ireland' },
-					{ name: 'Colombia', value: 'Colombia' },
-					{ name: 'Chile', value: 'Chile' },
-					{ name: 'Malaysia', value: 'Malaysia' },
-					{ name: 'Egypt', value: 'Egypt' },
-					{ name: 'Nigeria', value: 'Nigeria' },
-					{ name: 'Japan', value: 'Japan' },
-					{ name: 'Hong Kong', value: 'Hong Kong' },
-					{ name: 'Finland', value: 'Finland' },
-					{ name: 'Denmark', value: 'Denmark' },
-					{ name: 'Taiwan', value: 'Taiwan' },
-					{ name: 'Bangladesh', value: 'Bangladesh' },
-					{ name: 'Austria', value: 'Austria' },
-					{ name: 'Czech Republic', value: 'Czech Republic' },
-					{ name: 'Peru', value: 'Peru' },
-					{ name: 'Kenya', value: 'Kenya' },
-					{ name: 'Vietnam', value: 'Vietnam' },
-					{ name: 'Poland', value: 'Poland' },
-					{ name: 'Ukraine', value: 'Ukraine' },
-					{ name: 'Thailand', value: 'Thailand' },
-					{ name: 'South Korea', value: 'South Korea' },
-					{ name: 'Iran', value: 'Iran' },
-					{ name: 'Morocco', value: 'Morocco' },
-					{ name: 'Venezuela', value: 'Venezuela' },
-					{ name: 'Hungary', value: 'Hungary' },
-					{ name: 'Sri Lanka', value: 'Sri Lanka' },
-					{ name: 'New Zealand', value: 'New Zealand' },
-					{ name: 'Portugal', value: 'Portugal' },
+					{ name: 'United States', value: 'US' },
+					{ name: 'India', value: 'IN' },
+					{ name: 'United Kingdom', value: 'GB' },
+					{ name: 'Brazil', value: 'BR' },
+					{ name: 'Canada', value: 'CA' },
+					{ name: 'Australia', value: 'AU' },
+					{ name: 'France', value: 'FR' },
+					{ name: 'Germany', value: 'DE' },
+					{ name: 'Netherlands', value: 'NL' },
+					{ name: 'Italy', value: 'IT' },
+					{ name: 'South Africa', value: 'ZA' },
+					{ name: 'Mexico', value: 'MX' },
+					{ name: 'Turkey', value: 'TR' },
+					{ name: 'Sweden', value: 'SE' },
+					{ name: 'China', value: 'CN' },
+					{ name: 'Indonesia', value: 'ID' },
+					{ name: 'Belgium', value: 'BE' },
+					{ name: 'Spain', value: 'ES' },
+					{ name: 'United Arab Emirates', value: 'AE' },
+					{ name: 'Argentina', value: 'AR' },
+					{ name: 'Switzerland', value: 'CH' },
+					{ name: 'Singapore', value: 'SG' },
+					{ name: 'Saudi Arabia', value: 'SA' },
+					{ name: 'Ireland', value: 'IE' },
+					{ name: 'Colombia', value: 'CO' },
+					{ name: 'Chile', value: 'CL' },
+					{ name: 'Malaysia', value: 'MY' },
+					{ name: 'Egypt', value: 'EG' },
+					{ name: 'Nigeria', value: 'NG' },
+					{ name: 'Japan', value: 'JP' },
+					{ name: 'Hong Kong', value: 'HK' },
+					{ name: 'Finland', value: 'FI' },
+					{ name: 'Denmark', value: 'DK' },
+					{ name: 'Taiwan', value: 'TW' },
+					{ name: 'Bangladesh', value: 'BD' },
+					{ name: 'Austria', value: 'AT' },
+					{ name: 'Czech Republic', value: 'CZ' },
+					{ name: 'Peru', value: 'PE' },
+					{ name: 'Kenya', value: 'KE' },
+					{ name: 'Vietnam', value: 'VN' },
+					{ name: 'Poland', value: 'PL' },
+					{ name: 'Ukraine', value: 'UA' },
+					{ name: 'Thailand', value: 'TH' },
+					{ name: 'South Korea', value: 'KR' },
+					{ name: 'Iran', value: 'IR' },
+					{ name: 'Morocco', value: 'MA' },
+					{ name: 'Venezuela', value: 'VE' },
+					{ name: 'Hungary', value: 'HU' },
+					{ name: 'Sri Lanka', value: 'LK' },
+					{ name: 'New Zealand', value: 'NZ' },
+					{ name: 'Portugal', value: 'PT' },
+					{ name: 'Greece', value: 'GR' },
+					{ name: 'Romania', value: 'RO' },
+					{ name: 'Norway', value: 'NO' },
+					{ name: 'Russia', value: 'RU' },
+					{ name: 'Philippines', value: 'PH' },
+					{ name: 'Israel', value: 'IL' },
+					{ name: 'Qatar', value: 'QA' },
+					{ name: 'Kuwait', value: 'KW' },
+					{ name: 'Pakistan', value: 'PK' },
 				],
 				default: [],
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['searchContacts'],
+						operation: ['prospectingContacts'],
 					},
 				},
-				description: 'Filter contacts by country',
+				description: 'Filter contacts by country (ISO-2 codes sent to API)',
 			},
 			// Company filters for contact search
 			{
@@ -387,7 +460,7 @@ export class Lusha implements INodeType {
 			  displayOptions: {
 			    show: {
 			      resource: ['contact'],
-			      operation: ['searchContacts'],
+			      operation: ['prospectingContacts'],
 			    },
 			  },
 			  options: [
@@ -702,60 +775,69 @@ export class Lusha implements INodeType {
 				name: 'contactSearchCompanyCountries',
 				type: 'multiOptions',
 				options: [
-					{ name: 'United States', value: 'United States' },
-					{ name: 'India', value: 'India' },
-					{ name: 'United Kingdom', value: 'United Kingdom' },
-					{ name: 'Brazil', value: 'Brazil' },
-					{ name: 'Canada', value: 'Canada' },
-					{ name: 'Australia', value: 'Australia' },
-					{ name: 'France', value: 'France' },
-					{ name: 'Germany', value: 'Germany' },
-					{ name: 'Netherlands', value: 'Netherlands' },
-					{ name: 'Italy', value: 'Italy' },
-					{ name: 'South Africa', value: 'South Africa' },
-					{ name: 'Mexico', value: 'Mexico' },
-					{ name: 'Turkey', value: 'Turkey' },
-					{ name: 'Sweden', value: 'Sweden' },
-					{ name: 'China', value: 'China' },
-					{ name: 'Indonesia', value: 'Indonesia' },
-					{ name: 'Belgium', value: 'Belgium' },
-					{ name: 'Spain', value: 'Spain' },
-					{ name: 'United Arab Emirates', value: 'United Arab Emirates' },
-					{ name: 'Argentina', value: 'Argentina' },
-					{ name: 'Switzerland', value: 'Switzerland' },
-					{ name: 'Singapore', value: 'Singapore' },
-					{ name: 'Saudi Arabia', value: 'Saudi Arabia' },
-					{ name: 'Ireland', value: 'Ireland' },
-					{ name: 'Colombia', value: 'Colombia' },
-					{ name: 'Chile', value: 'Chile' },
-					{ name: 'Malaysia', value: 'Malaysia' },
-					{ name: 'Egypt', value: 'Egypt' },
-					{ name: 'Nigeria', value: 'Nigeria' },
-					{ name: 'Japan', value: 'Japan' },
-					{ name: 'Hong Kong', value: 'Hong Kong' },
-					{ name: 'Finland', value: 'Finland' },
-					{ name: 'Denmark', value: 'Denmark' },
-					{ name: 'Taiwan', value: 'Taiwan' },
-					{ name: 'Bangladesh', value: 'Bangladesh' },
-					{ name: 'Austria', value: 'Austria' },
-					{ name: 'Czech Republic', value: 'Czech Republic' },
-					{ name: 'Peru', value: 'Peru' },
-					{ name: 'Kenya', value: 'Kenya' },
-					{ name: 'Vietnam', value: 'Vietnam' },
-					{ name: 'Poland', value: 'Poland' },
-					{ name: 'Ukraine', value: 'Ukraine' },
-					{ name: 'Thailand', value: 'Thailand' },
-					{ name: 'South Korea', value: 'South Korea' },
-					{ name: 'Iran', value: 'Iran' },
-					{ name: 'Morocco', value: 'Morocco' },
-					{ name: 'Venezuela', value: 'Venezuela' },
-					{ name: 'Hungary', value: 'Hungary' },
-					{ name: 'Sri Lanka', value: 'Sri Lanka' },
-					{ name: 'New Zealand', value: 'New Zealand' },
-					{ name: 'Portugal', value: 'Portugal' },
+					{ name: 'United States', value: 'US' },
+					{ name: 'India', value: 'IN' },
+					{ name: 'United Kingdom', value: 'GB' },
+					{ name: 'Brazil', value: 'BR' },
+					{ name: 'Canada', value: 'CA' },
+					{ name: 'Australia', value: 'AU' },
+					{ name: 'France', value: 'FR' },
+					{ name: 'Germany', value: 'DE' },
+					{ name: 'Netherlands', value: 'NL' },
+					{ name: 'Italy', value: 'IT' },
+					{ name: 'South Africa', value: 'ZA' },
+					{ name: 'Mexico', value: 'MX' },
+					{ name: 'Turkey', value: 'TR' },
+					{ name: 'Sweden', value: 'SE' },
+					{ name: 'China', value: 'CN' },
+					{ name: 'Indonesia', value: 'ID' },
+					{ name: 'Belgium', value: 'BE' },
+					{ name: 'Spain', value: 'ES' },
+					{ name: 'United Arab Emirates', value: 'AE' },
+					{ name: 'Argentina', value: 'AR' },
+					{ name: 'Switzerland', value: 'CH' },
+					{ name: 'Singapore', value: 'SG' },
+					{ name: 'Saudi Arabia', value: 'SA' },
+					{ name: 'Ireland', value: 'IE' },
+					{ name: 'Colombia', value: 'CO' },
+					{ name: 'Chile', value: 'CL' },
+					{ name: 'Malaysia', value: 'MY' },
+					{ name: 'Egypt', value: 'EG' },
+					{ name: 'Nigeria', value: 'NG' },
+					{ name: 'Japan', value: 'JP' },
+					{ name: 'Hong Kong', value: 'HK' },
+					{ name: 'Finland', value: 'FI' },
+					{ name: 'Denmark', value: 'DK' },
+					{ name: 'Taiwan', value: 'TW' },
+					{ name: 'Bangladesh', value: 'BD' },
+					{ name: 'Austria', value: 'AT' },
+					{ name: 'Czech Republic', value: 'CZ' },
+					{ name: 'Peru', value: 'PE' },
+					{ name: 'Kenya', value: 'KE' },
+					{ name: 'Vietnam', value: 'VN' },
+					{ name: 'Poland', value: 'PL' },
+					{ name: 'Ukraine', value: 'UA' },
+					{ name: 'Thailand', value: 'TH' },
+					{ name: 'South Korea', value: 'KR' },
+					{ name: 'Iran', value: 'IR' },
+					{ name: 'Morocco', value: 'MA' },
+					{ name: 'Venezuela', value: 'VE' },
+					{ name: 'Hungary', value: 'HU' },
+					{ name: 'Sri Lanka', value: 'LK' },
+					{ name: 'New Zealand', value: 'NZ' },
+					{ name: 'Portugal', value: 'PT' },
+					{ name: 'Greece', value: 'GR' },
+					{ name: 'Romania', value: 'RO' },
+					{ name: 'Norway', value: 'NO' },
+					{ name: 'Russia', value: 'RU' },
+					{ name: 'Philippines', value: 'PH' },
+					{ name: 'Israel', value: 'IL' },
+					{ name: 'Qatar', value: 'QA' },
+					{ name: 'Kuwait', value: 'KW' },
+					{ name: 'Pakistan', value: 'PK' },
 				],
 				default: [],
-				description: 'Filter contacts by company country',
+				description: 'Filter contacts by company country (ISO-2 codes sent to API)',
 			},
 			{
 				displayName: 'Company States',
@@ -772,9 +854,41 @@ export class Lusha implements INodeType {
 				default: '',
 				description: 'Filter contacts by company cities (comma-separated)',
 				placeholder: 'San Francisco, New York',
-				 }
-			]  
-		},     
+			},
+			{
+				displayName: 'Technologies',
+				name: 'contactSearchTechnologies',
+				type: 'string',
+				default: '',
+				description: 'Filter by company tech stack (comma-separated, e.g., Salesforce, HubSpot)',
+				placeholder: 'Salesforce, HubSpot, AWS',
+			},
+			{
+				displayName: 'Intent Topics',
+				name: 'contactSearchIntentTopics',
+				type: 'string',
+				default: '',
+				description: 'Filter by company buyer-intent topics (comma-separated)',
+				placeholder: 'CRM, Sales Automation',
+			},
+			{
+				displayName: 'NAICS Codes',
+				name: 'contactSearchNaicsCodes',
+				type: 'string',
+				default: '',
+				description: 'Filter by NAICS industry classification codes (comma-separated)',
+				placeholder: '511210, 541511',
+			},
+			{
+				displayName: 'SIC Codes',
+				name: 'contactSearchSicsCodes',
+				type: 'string',
+				default: '',
+				description: 'Filter by SIC industry classification codes (comma-separated)',
+				placeholder: '7372, 7371',
+			},
+			]
+		},
 
 			// ===== CONTACT ENRICH FROM SEARCH FIELDS =====
 			{
@@ -837,12 +951,129 @@ export class Lusha implements INodeType {
 				placeholder: 'contact_123, contact_456',
 			},
 
+			// ===== CONTACT LOOKALIKE FIELDS =====
+			{
+				displayName: 'Seed Type',
+				name: 'contactLookalikeSeedType',
+				type: 'options',
+				options: [
+					{ name: 'Emails', value: 'emails' },
+					{ name: 'LinkedIn URLs', value: 'linkedinUrls' },
+					{ name: 'Name + Company', value: 'nameAndCompany' },
+					{ name: 'Lusha Contact IDs', value: 'contactIds' },
+				],
+				default: 'emails',
+				displayOptions: {
+					show: { resource: ['contact'], operation: ['searchLookalikes'] },
+				},
+				description: 'How to identify seed contacts (5–100 total seeds required)',
+			},
+			{
+				displayName: 'Seeds',
+				name: 'contactLookalikeSeeds',
+				type: 'fixedCollection',
+				typeOptions: { multipleValues: true },
+				default: {},
+				displayOptions: {
+					show: { resource: ['contact'], operation: ['searchLookalikes'] },
+				},
+				description: 'Seed contacts to find lookalikes for (5–100 required)',
+				options: [
+					{
+						name: 'seed',
+						displayName: 'Seed',
+						values: [
+							{
+								displayName: 'Value',
+								name: 'value',
+								type: 'string',
+								default: '',
+								description: 'Email, LinkedIn URL, or Lusha contact ID depending on Seed Type',
+							},
+							{
+								displayName: 'First Name',
+								name: 'firstName',
+								type: 'string',
+								default: '',
+								displayOptions: { show: { '/contactLookalikeSeedType': ['nameAndCompany'] } },
+							},
+							{
+								displayName: 'Last Name',
+								name: 'lastName',
+								type: 'string',
+								default: '',
+								displayOptions: { show: { '/contactLookalikeSeedType': ['nameAndCompany'] } },
+							},
+							{
+								displayName: 'Company Domain',
+								name: 'companyDomain',
+								type: 'string',
+								default: '',
+								placeholder: 'acme.com',
+								displayOptions: { show: { '/contactLookalikeSeedType': ['nameAndCompany'] } },
+								description: 'Company domain or name (at least one required)',
+							},
+							{
+								displayName: 'Company Name',
+								name: 'companyName',
+								type: 'string',
+								default: '',
+								displayOptions: { show: { '/contactLookalikeSeedType': ['nameAndCompany'] } },
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Limit',
+				name: 'contactLookalikeLimit',
+				type: 'number',
+				typeOptions: { minValue: 1, maxValue: 50 },
+				default: 25,
+				displayOptions: {
+					show: { resource: ['contact'], operation: ['searchLookalikes'] },
+				},
+				description: 'Number of lookalike results to return (1–50)',
+			},
+			{
+				displayName: 'Additional Options',
+				name: 'contactLookalikeOptions',
+				type: 'collection',
+				placeholder: 'Add option',
+				default: {},
+				displayOptions: {
+					show: { resource: ['contact'], operation: ['searchLookalikes'] },
+				},
+				options: [
+					{
+						displayName: 'Dedupe Session ID',
+						name: 'dedupeSessionId',
+						type: 'string',
+						default: '',
+						description: 'Paste the dedupeSessionId from a prior call to get the next page of non-duplicate results. Sessions expire after 30 days.',
+					},
+					{
+						displayName: 'Exclude Emails',
+						name: 'excludeEmails',
+						type: 'string',
+						default: '',
+						placeholder: 'a@b.com, c@d.com',
+						description: 'Comma-separated emails to exclude from results (e.g., existing customers)',
+					},
+				],
+			},
+
 			// ===== CONTACT BULK ENRICH FIELDS =====
 			{
 				displayName: 'Bulk Type',
 				name: 'bulkType',
 				type: 'options',
 				options: [
+					{
+						name: 'Email List',
+						value: 'emailList',
+						description: 'Paste a comma-separated list of email addresses',
+					},
 					{
 						name: 'Simple List',
 						value: 'simple',
@@ -854,7 +1085,7 @@ export class Lusha implements INodeType {
 						description: 'Use raw JSON for advanced configurations',
 					},
 				],
-				default: 'simple',
+				default: 'emailList',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
@@ -972,6 +1203,25 @@ export class Lusha implements INodeType {
 					},
 				],
 			},
+			// Email list field
+			{
+				displayName: 'Email Addresses',
+				name: 'bulkEmailList',
+				type: 'string',
+				typeOptions: {
+					rows: 4,
+				},
+				default: '',
+				placeholder: 'john@acme.com, jane@corp.com, bob@example.com',
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichBulk'],
+						bulkType: ['emailList'],
+					},
+				},
+				description: 'Comma-separated list of email addresses to enrich (up to 100)',
+			},
 			// Advanced JSON field
 			{
 				displayName: 'Contacts Payload (JSON)',
@@ -980,7 +1230,7 @@ export class Lusha implements INodeType {
 				typeOptions: {
 					rows: 10,
 				},
-				default: '{\n  "contacts": [],\n  "metadata": {}\n}',
+				default: '{\n  "contacts": [],\n  "reveal": ["emails", "phones"]\n}',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
@@ -988,7 +1238,46 @@ export class Lusha implements INodeType {
 						bulkType: ['json'],
 					},
 				},
-				description: 'Raw JSON body for POST /v2/person bulk enrichment (contacts + metadata).',
+				description: 'Raw JSON body for POST /v3/contacts/search-and-enrich bulk enrichment (contacts array).',
+			},
+
+			// ===== CONTACT SEARCH AND ENRICH FIELDS =====
+			{
+				displayName: 'Contacts',
+				name: 'searchAndEnrichContacts',
+				type: 'fixedCollection',
+				typeOptions: { multipleValues: true },
+				default: {},
+				displayOptions: { show: { resource: ['contact'], operation: ['searchAndEnrich'] } },
+				description: 'List of contacts to search and enrich (up to 100). Fill whichever identifier you have — Lusha ID takes priority, then email, LinkedIn URL, then name + company.',
+				options: [
+					{
+						name: 'contact',
+						displayName: 'Contact',
+						values: [
+							{ displayName: 'Email', name: 'email', type: 'string', default: '', placeholder: 'john@example.com' },
+							{ displayName: 'LinkedIn URL', name: 'linkedinUrl', type: 'string', default: '', placeholder: 'https://www.linkedin.com/in/johndoe' },
+							{ displayName: 'First Name', name: 'firstName', type: 'string', default: '', placeholder: 'John' },
+							{ displayName: 'Last Name', name: 'lastName', type: 'string', default: '', placeholder: 'Doe' },
+							{ displayName: 'Company Name', name: 'companyName', type: 'string', default: '', placeholder: 'Acme Inc' },
+							{ displayName: 'Company Domain', name: 'companyDomain', type: 'string', default: '', placeholder: 'acme.com' },
+							{ displayName: 'Lusha ID', name: 'lushaId', type: 'string', default: '', description: 'Lusha entity ID from a previous search or enrich result' },
+							{ displayName: 'Client Reference ID', name: 'clientReferenceId', type: 'string', default: '', description: 'Your own reference ID, returned in the response for correlation' },
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Reveal',
+				name: 'searchAndEnrichReveal',
+				type: 'multiOptions',
+				options: [
+					{ name: 'Emails', value: 'emails' },
+					{ name: 'Phone Numbers', value: 'phones' },
+				],
+				default: ['emails', 'phones'],
+				displayOptions: { show: { resource: ['contact'], operation: ['searchAndEnrich'] } },
+				description: 'Which contact data to unlock. Billing applies per revealed field.',
 			},
 
 			// ===================== COMPANY OPERATIONS =====================
@@ -1004,22 +1293,28 @@ export class Lusha implements INodeType {
 				},
 				options: [
 					{
-						name: 'Enrich Single',
-						value: 'enrichSingle',
-						action: 'Enrich a single company',
-						description: 'Enrich a single company with additional information',
+						name: 'Enrich Companies',
+						value: 'enrichBulk',
+						action: 'Enrich companies',
+						description: 'Enrich one or more companies with additional information',
 					},
 					{
-						name: 'Enrich Bulk',
-						value: 'enrichBulk',
-						action: 'Enrich companies in bulk',
-						description: 'Enrich multiple companies with additional information',
+						name: 'Search and Enrich',
+						value: 'searchAndEnrich',
+						action: 'Search and enrich companies',
+						description: 'Find and reveal data for 1–100 companies in a single call',
 					},
 					{
 						name: 'Search Companies',
 						value: 'searchCompanies',
-						action: 'Search for companies',
-						description: 'Search and discover new companies based on criteria',
+						action: 'Search for companies by identifier',
+						description: 'Locate companies by identifier (name, domain, or Lusha ID)',
+					},
+					{
+						name: 'Prospect Companies',
+						value: 'prospectingCompanies',
+						action: 'Prospect companies by ICP filters',
+						description: 'Discover companies matching your ICP using rich filter criteria',
 					},
 					{
 						name: 'Enrich from Search',
@@ -1027,85 +1322,165 @@ export class Lusha implements INodeType {
 						action: 'Enrich companies from search results',
 						description: 'Enrich companies found through a previous search',
 					},
+					{
+						name: 'Search Lookalikes',
+						value: 'searchLookalikes',
+						action: 'Find lookalike companies',
+						description: 'Find companies similar to your seed companies (5–100 seeds required)',
+					},
 				],
-				default: 'enrichSingle',
+				default: 'enrichBulk',
 			},
 
-			// ===== COMPANY ENRICH SINGLE FIELDS =====
+			// ===== COMPANY SEARCH (identifier-based) FIELDS =====
 			{
-				displayName: 'Search By',
-				name: 'companySearchBy',
+				displayName: 'Input Mode',
+				name: 'searchCompaniesInputMode',
 				type: 'options',
+				noDataExpression: true,
 				options: [
 					{
-						name: 'Domain',
-						value: 'domain',
+						name: 'Simple — Domains / Names',
+						value: 'simple',
+						description: 'Paste comma-separated domains or company names',
 					},
 					{
-						name: 'Company Name',
-						value: 'name',
+						name: 'Advanced — Full Identifier List',
+						value: 'advanced',
+						description: 'Build a list with explicit ID, name, and domain per company',
 					},
 				],
-				default: 'domain',
+				default: 'simple',
 				displayOptions: {
 					show: {
 						resource: ['company'],
-						operation: ['enrichSingle'],
+						operation: ['searchCompanies'],
 					},
 				},
 			},
 			{
-				displayName: 'Domain',
-				name: 'domain',
+				displayName: 'Domains / Names',
+				name: 'searchCompaniesSimpleInput',
 				type: 'string',
 				default: '',
+				placeholder: 'lusha.com, microsoft.com, Acme Corp',
+				description: 'One or more company domains or names, comma-separated. Values containing a dot are treated as domains; others as names.',
 				displayOptions: {
 					show: {
 						resource: ['company'],
-						operation: ['enrichSingle'],
-						companySearchBy: ['domain'],
-					},
-				},
-				description: 'Company domain (e.g., example.com)',
-			},
-			{
-				displayName: 'Company Name',
-				name: 'companyName',
-				type: 'string',
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['company'],
-						operation: ['enrichSingle'],
-						companySearchBy: ['name'],
+						operation: ['searchCompanies'],
+						searchCompaniesInputMode: ['simple'],
 					},
 				},
 			},
 			{
-				displayName: 'Additional Options',
-				name: 'companyEnrichAdditionalOptions',
+				displayName: 'Companies',
+				name: 'searchCompaniesList',
+				type: 'fixedCollection',
+				typeOptions: { multipleValues: true },
+				placeholder: 'Add Company',
+				default: { company: [] },
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['searchCompanies'],
+						searchCompaniesInputMode: ['advanced'],
+					},
+				},
+				description: 'List of companies to search. Each company needs at least one identifier.',
+				options: [
+					{
+						name: 'company',
+						displayName: 'Company',
+						values: [
+							{
+								displayName: 'Client Reference ID',
+								name: 'clientReferenceId',
+								type: 'string',
+								default: '',
+								description: 'Your own reference ID echoed back in the response',
+							},
+							{
+								displayName: 'Lusha ID',
+								name: 'id',
+								type: 'string',
+								default: '',
+								description: 'Lusha company ID',
+							},
+							{
+								displayName: 'Company Name',
+								name: 'name',
+								type: 'string',
+								default: '',
+								description: 'Company name',
+							},
+							{
+								displayName: 'Domain',
+								name: 'domain',
+								type: 'string',
+								default: '',
+								placeholder: 'lusha.com',
+								description: 'Company domain',
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Options',
+				name: 'searchCompaniesOptions',
 				type: 'collection',
 				placeholder: 'Add option',
 				default: {},
 				displayOptions: {
 					show: {
 						resource: ['company'],
-						operation: ['enrichSingle'],
+						operation: ['searchCompanies'],
 					},
 				},
 				options: [
 					{
-						displayName: 'Simplified Output',
-						name: 'companySimplifiedOutput',
+						displayName: 'Include Partial Profiles',
+						name: 'includePartialProfiles',
 						type: 'boolean',
-						default: true,
-						description:
-							'If enabled, returns a flattened, friendly object plus the raw response under "raw". If disabled, returns the raw API response only.',
+						default: false,
+						description: 'Whether to include companies where only partial data is available',
+					},
+					{
+						displayName: 'Signal Types',
+						name: 'signalTypes',
+						type: 'multiOptions',
+						options: [
+							{ name: 'All Signals', value: 'allSignals' },
+							{ name: 'Hiring', value: 'hiring' },
+							{ name: 'Technology Change', value: 'technologyChange' },
+							{ name: 'New Funding', value: 'newFunding' },
+							{ name: 'Leadership Change', value: 'leadershipChange' },
+							{ name: 'Company Growth', value: 'companyGrowth' },
+							{ name: 'News Mention', value: 'newsMention' },
+						],
+						default: [],
+						description: 'Narrow results to companies with recent signal activity',
+					},
+					{
+						displayName: 'Signal Start Date',
+						name: 'signalStartDate',
+						type: 'string',
+						default: '',
+						placeholder: '2025-01-01',
+						description: 'Only include signals on or after this date (YYYY-MM-DD)',
+					},
+					{
+						displayName: 'Max Results Per Signal',
+						name: 'maxResultsPerSignal',
+						type: 'number',
+						default: 0,
+						description: 'Maximum number of results per signal type (0 = no limit)',
 					},
 				],
 			},
 
-			// ===== COMPANY SEARCH FIELDS =====
+			// ===== COMPANY PROSPECTING (filter-based) FIELDS =====
 			{
 				displayName: 'Company Names / Domains',
 				name: 'searchCompanyDomains',
@@ -1114,7 +1489,7 @@ export class Lusha implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['company'],
-						operation: ['searchCompanies'],
+						operation: ['prospectingCompanies'],
 					},
 				},
 				description: 'Company names or domains to search (comma-separated, e.g., "Lusha, lusha.com")',
@@ -1143,7 +1518,7 @@ export class Lusha implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['company'],
-						operation: ['searchCompanies'],
+						operation: ['prospectingCompanies'],
 					},
 				},
 				description: 'Filter by company countries',
@@ -1157,7 +1532,7 @@ export class Lusha implements INodeType {
 		  displayOptions: {
 		    show: {
 		      resource: ['company'],
-		      operation: ['searchCompanies'],
+		      operation: ['prospectingCompanies'],
 		    },
 		  },
 		  options: [
@@ -1506,7 +1881,87 @@ export class Lusha implements INodeType {
 				placeholder: 'company_123, company_456',
 			},
 
-			// ===== COMPANY BULK ENRICH FIELDS =====
+			// ===== COMPANY LOOKALIKE FIELDS =====
+			{
+				displayName: 'Seed Type',
+				name: 'companyLookalikeSeedType',
+				type: 'options',
+				options: [
+					{ name: 'Domains', value: 'domains' },
+					{ name: 'LinkedIn URLs', value: 'linkedinUrls' },
+				],
+				default: 'domains',
+				displayOptions: {
+					show: { resource: ['company'], operation: ['searchLookalikes'] },
+				},
+				description: 'How to identify seed companies (5–100 total seeds required)',
+			},
+			{
+				displayName: 'Seeds',
+				name: 'companyLookalikeSeeds',
+				type: 'fixedCollection',
+				typeOptions: { multipleValues: true },
+				default: {},
+				displayOptions: {
+					show: { resource: ['company'], operation: ['searchLookalikes'] },
+				},
+				description: 'Seed companies to find lookalikes for (5–100 required)',
+				options: [
+					{
+						name: 'seed',
+						displayName: 'Seed',
+						values: [
+							{
+								displayName: 'Value',
+								name: 'value',
+								type: 'string',
+								default: '',
+								description: 'Company domain (e.g. lusha.com) or LinkedIn company URL',
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Limit',
+				name: 'companyLookalikeLimit',
+				type: 'number',
+				typeOptions: { minValue: 1, maxValue: 100 },
+				default: 25,
+				displayOptions: {
+					show: { resource: ['company'], operation: ['searchLookalikes'] },
+				},
+				description: 'Number of lookalike results to return (1–100)',
+			},
+			{
+				displayName: 'Additional Options',
+				name: 'companyLookalikeOptions',
+				type: 'collection',
+				placeholder: 'Add option',
+				default: {},
+				displayOptions: {
+					show: { resource: ['company'], operation: ['searchLookalikes'] },
+				},
+				options: [
+					{
+						displayName: 'Dedupe Session ID',
+						name: 'dedupeSessionId',
+						type: 'string',
+						default: '',
+						description: 'Paste the dedupeSessionId from a prior call to get the next page of non-duplicate results. Sessions expire after 30 days.',
+					},
+					{
+						displayName: 'Exclude Domains',
+						name: 'excludeDomains',
+						type: 'string',
+						default: '',
+						placeholder: 'competitor.com, other.com',
+						description: 'Comma-separated company domains to exclude from results',
+					},
+				],
+			},
+
+			// ===== COMPANY ENRICH FIELDS =====
 			{
 				displayName: 'Bulk Type',
 				name: 'companyBulkType',
@@ -1589,7 +2044,31 @@ export class Lusha implements INodeType {
 						companyBulkType: ['json'],
 					},
 				},
-				description: 'Raw JSON body for POST /v2/company bulk enrichment (companies + optional signals).',
+				description: 'Raw JSON body for POST /v3/companies/search-and-enrich bulk enrichment (companies array).',
+			},
+
+			// ===== COMPANY SEARCH AND ENRICH FIELDS =====
+			{
+				displayName: 'Companies',
+				name: 'searchAndEnrichCompanies',
+				type: 'fixedCollection',
+				typeOptions: { multipleValues: true },
+				default: {},
+				displayOptions: { show: { resource: ['company'], operation: ['searchAndEnrich'] } },
+				description: 'List of companies to search and enrich (up to 100). Fill whichever identifier you have — Lusha ID takes priority, then domain, LinkedIn URL, then name.',
+				options: [
+					{
+						name: 'company',
+						displayName: 'Company',
+						values: [
+							{ displayName: 'Domain', name: 'domain', type: 'string', default: '', placeholder: 'acme.com' },
+							{ displayName: 'Company Name', name: 'name', type: 'string', default: '', placeholder: 'Acme Inc' },
+							{ displayName: 'LinkedIn URL', name: 'linkedinUrl', type: 'string', default: '', placeholder: 'https://www.linkedin.com/company/acme' },
+							{ displayName: 'Lusha ID', name: 'lushaId', type: 'string', default: '', description: 'Lusha entity ID from a previous search or enrich result' },
+							{ displayName: 'Client Reference ID', name: 'clientReferenceId', type: 'string', default: '', description: 'Your own reference ID, returned in the response for correlation' },
+						],
+					},
+				],
 			},
 
 			// ===== PAGINATION FIELDS (CONTACT & COMPANY SEARCH) =====
@@ -1602,7 +2081,7 @@ export class Lusha implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['contact', 'company'],
-						operation: ['searchContacts', 'searchCompanies'],
+						operation: ['prospectingContacts', 'prospectingCompanies'],
 					},
 				},
 				options: [
@@ -1619,6 +2098,34 @@ export class Lusha implements INodeType {
 						type: 'number',
 						default: 50,
 						description: 'Number of results per page (max 50)',
+					},
+					{
+						displayName: 'Search Text',
+						name: 'searchText',
+						type: 'string',
+						default: '',
+						description: 'Free-text relevance hint layered on top of structured filters. Not an exact match — prefer structured filters for precision. Applies to Contact Search only.',
+						placeholder: 'sales automation SaaS',
+					},
+					{
+						displayName: 'Signal Types',
+						name: 'signalNames',
+						type: 'multiOptions',
+						options: [
+							{ name: 'All Signals', value: 'allSignals' },
+							{ name: 'Promotion', value: 'promotion' },
+							{ name: 'Company Change', value: 'companyChange' },
+						],
+						default: [],
+						description: 'Narrow results to contacts with recent signal activity (charges extra credits per signal type). Applies to Contact Search only.',
+					},
+					{
+						displayName: 'Signal Start Date',
+						name: 'signalStartDate',
+						type: 'string',
+						default: '',
+						description: 'Only include signals on or after this date (YYYY-MM-DD). Defaults to last 6 months when blank. Applies to Contact Search only.',
+						placeholder: '2025-01-01',
 					},
 				],
 			},
@@ -1639,6 +2146,7 @@ export class Lusha implements INodeType {
 					method: 'GET',
 					headers: {
 						Accept: 'application/json',
+						prtnr: 'n8n_connector-prod',
 					},
 					qs: {},
 					body: {},
@@ -1649,74 +2157,96 @@ export class Lusha implements INodeType {
 				// ===================== CONTACT OPERATIONS =====================
 				if (resource === 'contact') {
 					switch (operation) {
-						case 'enrichSingle': {
-							const searchBy = this.getNodeParameter('searchBy', i) as string;
-
-							requestOptions.url = '/v2/person';
-							requestOptions.method = 'GET';
-							delete requestOptions.body; // Remove body for GET request
-							requestOptions.qs = {};
-
-							if (searchBy === 'nameAndCompany') {
-								const firstName = this.getNodeParameter('firstName', i, '') as string;
-								const lastName = this.getNodeParameter('lastName', i, '') as string;
-								const companyName = this.getNodeParameter('companyName', i, '') as string;
-								const companyDomain = this.getNodeParameter('companyDomain', i, '') as string;
-
-								if (firstName) requestOptions.qs.firstName = firstName;
-								if (lastName) requestOptions.qs.lastName = lastName;
-								
-								// Include both company name and domain if provided
-								if (companyName) requestOptions.qs.companyName = companyName;
-								if (companyDomain) requestOptions.qs.companyDomain = companyDomain;
-							} else if (searchBy === 'email') {
-								const email = this.getNodeParameter('email', i) as string;
-								requestOptions.qs.email = email;
-							} else if (searchBy === 'linkedinUrl') {
-								const linkedinUrl = this.getNodeParameter('linkedinUrl', i) as string;
-								requestOptions.qs.linkedinUrl = linkedinUrl;
-							}
-
-							// Additional Options (collection)
-							const filterBy = this.getNodeParameter(
-								'contactEnrichAdditionalOptions.filterBy',
-								i,
-								'',
-							) as string;
-							
-							if (filterBy) requestOptions.qs.filterBy = filterBy;
-							
-							const revealEmails = this.getNodeParameter(
-								'contactEnrichAdditionalOptions.revealEmails',
-								i,
-								false,
-							) as boolean;
-							
-							const revealPhones = this.getNodeParameter(
-								'contactEnrichAdditionalOptions.revealPhones',
-								i,
-								false,
-							) as boolean;
-							
-							if (revealEmails) requestOptions.qs.revealEmails = true;
-							if (revealPhones) requestOptions.qs.revealPhones = true;
-							
-							break;
-						}
-
 						case 'searchContacts': {
-							requestOptions.url = '/prospecting/contact/search';
+							// POST /v3/contacts/search — identifier-based lookup
+							requestOptions.url = '/v3/contacts/search';
 							requestOptions.method = 'POST';
 							if (!requestOptions.headers) requestOptions.headers = {};
 							requestOptions.headers['Content-Type'] = 'application/json';
-							delete requestOptions.qs; // Remove query string for POST
+							delete requestOptions.qs;
 
-							// Build proper request body structure
+							const contactInputMode = this.getNodeParameter('searchContactsInputMode', i, 'simple') as string;
+							const contacts: IDataObject[] = [];
+							let refCounter = 1;
+
+							if (contactInputMode === 'simple') {
+								const emailsRaw = this.getNodeParameter('searchContactsEmails', i, '') as string;
+								const linkedinRaw = this.getNodeParameter('searchContactsLinkedinUrls', i, '') as string;
+								const lushaIdsRaw = this.getNodeParameter('searchContactsLushaIds', i, '') as string;
+
+								emailsRaw.split(',').map(s => s.trim()).filter(s => s).forEach(email => {
+									contacts.push({ clientReferenceId: String(refCounter++), email });
+								});
+								linkedinRaw.split(',').map(s => s.trim()).filter(s => s).forEach(linkedinUrl => {
+									contacts.push({ clientReferenceId: String(refCounter++), linkedinUrl });
+								});
+								lushaIdsRaw.split(',').map(s => s.trim()).filter(s => s).forEach(id => {
+									contacts.push({ clientReferenceId: String(refCounter++), id });
+								});
+							} else {
+								const contactsList = this.getNodeParameter('searchContactsList', i, { contact: [] }) as IDataObject;
+								const contactEntries = (contactsList.contact as IDataObject[]) ?? [];
+								contactEntries.forEach((entry) => {
+									const emails = entry.email ? String(entry.email).split(',').map((s: string) => s.trim()).filter((s: string) => s) : [];
+									const linkedinUrls = entry.linkedinUrl ? String(entry.linkedinUrl).split(',').map((s: string) => s.trim()).filter((s: string) => s) : [];
+									const ids = entry.id ? String(entry.id).split(',').map((s: string) => s.trim()).filter((s: string) => s) : [];
+
+									if (emails.length > 1) {
+										emails.forEach((email: string) => contacts.push({ clientReferenceId: String(refCounter++), email }));
+									} else if (linkedinUrls.length > 1) {
+										linkedinUrls.forEach((linkedinUrl: string) => contacts.push({ clientReferenceId: String(refCounter++), linkedinUrl }));
+									} else if (ids.length > 1) {
+										ids.forEach((id: string) => contacts.push({ clientReferenceId: String(refCounter++), id }));
+									} else {
+										const c: IDataObject = {};
+										if (entry.clientReferenceId) c.clientReferenceId = entry.clientReferenceId;
+										else c.clientReferenceId = String(refCounter++);
+										if (entry.id) c.id = String(entry.id).trim();
+										if (entry.linkedinUrl) c.linkedinUrl = String(entry.linkedinUrl).trim();
+										if (entry.email) c.email = String(entry.email).trim();
+										if (entry.firstName) c.firstName = entry.firstName;
+										if (entry.lastName) c.lastName = entry.lastName;
+										if (entry.companyName) c.companyName = entry.companyName;
+										if (entry.companyDomain) c.companyDomain = entry.companyDomain;
+										if (Object.keys(c).length > 1) contacts.push(c);
+									}
+								});
+							}
+
+							if (contacts.length === 0) throw new Error('Search Contacts: provide at least one Email, LinkedIn URL, or Lusha ID.');
+
+							const searchContactsBody: IDataObject = { contacts };
+
+							const searchContactsOptions = this.getNodeParameter('searchContactsOptions', i, {}) as IDataObject;
+							if (searchContactsOptions.includePartialProfiles) {
+								searchContactsBody.options = { includePartialProfiles: true };
+							}
+
+							const contactSignalTypes = (searchContactsOptions.signalTypes as string[]) ?? [];
+							if (contactSignalTypes.length) {
+								const signalFilter: IDataObject = { types: contactSignalTypes };
+								if (searchContactsOptions.signalStartDate) signalFilter.startDate = searchContactsOptions.signalStartDate;
+								if (searchContactsOptions.maxResultsPerSignal) signalFilter.maxResultsPerSignal = searchContactsOptions.maxResultsPerSignal;
+								searchContactsBody.signals = signalFilter;
+							}
+
+							requestOptions.body = searchContactsBody;
+							break;
+						}
+
+						case 'prospectingContacts': {
+							// POST /v3/contacts/prospecting — filter-based ICP discovery
+							requestOptions.url = '/v3/contacts/prospecting';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs;
+
 							const page = this.getNodeParameter('searchAdditionalOptions.page', i, 0) as number;
 							const pageSize = this.getNodeParameter('searchAdditionalOptions.pageSize', i, 50) as number;
-							
+
 							const contactSearchBody: IDataObject = {
-								pages: {
+								pagination: {
 									page,
 									size: Math.min(pageSize, 50),
 								},
@@ -1724,7 +2254,7 @@ export class Lusha implements INodeType {
 									contacts: { include: {} },
 									companies: { include: {} },
 								},
-							};	
+							};
 
 							// Add job titles
 							const jobTitles = this.getNodeParameter('jobTitles', i, '') as string;
@@ -1747,44 +2277,37 @@ export class Lusha implements INodeType {
 								contactInclude.departments = departments;
 							}
 
-							// Add seniorities (as numbers)
+							// Add seniorities (seniorityIds = array of numbers)
 							const seniorities = this.getNodeParameter('seniorities', i, []) as number[];
 							if (seniorities.length) {
 								const contactInclude = ((contactSearchBody.filters as IDataObject)
 									.contacts as IDataObject).include as IDataObject;
-								contactInclude.seniority = seniorities;
+								contactInclude.seniorityIds = seniorities;
 							}
 
-							// Add locations
+							// Add contact countries
 							const countries = this.getNodeParameter('countries', i, []) as string[];
+							if (countries.length) {
+								const contactInclude = ((contactSearchBody.filters as IDataObject)
+									.contacts as IDataObject).include as IDataObject;
+								contactInclude.countries = countries;
+							}
+
+							// Add contact locations (state / city)
 							const states = this.getNodeParameter('contactSearchFilters.states', i, '') as string;
 							const cities = this.getNodeParameter('contactSearchFilters.cities', i, '') as string;
 							const locations: IDataObject[] = [];
 
-							if (countries.length) {
-								countries.forEach((country) => {
-									locations.push({ country });
+							if (states) {
+								states.split(',').map((s) => s.trim()).filter((s) => s).forEach((state) => {
+									locations.push({ state });
 								});
 							}
-							if (states) {
-								states
-									.split(',')
-									.map((s) => s.trim())
-									.filter((s) => s)
-									.forEach((state) => {
-										locations.push({ state });
-									});
-							}
 							if (cities) {
-								cities
-									.split(',')
-									.map((c) => c.trim())
-									.filter((c) => c)
-									.forEach((city) => {
-										locations.push({ city });
-									});
+								cities.split(',').map((c) => c.trim()).filter((c) => c).forEach((city) => {
+									locations.push({ city });
+								});
 							}
-
 							if (locations.length) {
 								const contactInclude = ((contactSearchBody.filters as IDataObject)
 									.contacts as IDataObject).include as IDataObject;
@@ -1792,11 +2315,7 @@ export class Lusha implements INodeType {
 							}
 
 							// Add existing data points
-							const existingDataPoints = this.getNodeParameter(
-								'contactSearchFilters.existingDataPoints',
-								i,
-								[],
-							) as string[];
+							const existingDataPoints = this.getNodeParameter('contactSearchFilters.existingDataPoints', i, []) as string[];
 							if (existingDataPoints.length) {
 								const contactInclude = ((contactSearchBody.filters as IDataObject)
 									.contacts as IDataObject).include as IDataObject;
@@ -1804,142 +2323,141 @@ export class Lusha implements INodeType {
 							}
 
 							// Add company filters (names/domains)
-							const companyDomains = this.getNodeParameter(
-								'contactSearchFilters.companyDomains',
-								i,
-								'',
-							) as string;
+							const companyDomains = this.getNodeParameter('contactSearchFilters.companyDomains', i, '') as string;
 							if (companyDomains) {
 								const companiesInclude = ((contactSearchBody.filters as IDataObject)
 									.companies as IDataObject).include as IDataObject;
-								const companyList = companyDomains
-									.split(',')
-									.map((c) => c.trim())
-									.filter((c) => c);
-
-								// Separate names and domains
+								const companyList = companyDomains.split(',').map((c) => c.trim()).filter((c) => c);
 								const domains = companyList.filter((c) => c.includes('.'));
 								const names = companyList.filter((c) => !c.includes('.'));
-
 								if (domains.length) companiesInclude.domains = domains;
 								if (names.length) companiesInclude.names = names;
 							}
-							
+
 							// Add company industry filters
-							const companyIndustries = this.getNodeParameter(
-								'contactSearchFilters.contactSearchCompanyMainIndustries',
-								i,
-								[],
-							) as string[];
+							const companyIndustries = this.getNodeParameter('contactSearchFilters.contactSearchCompanyMainIndustries', i, []) as string[];
 							if (companyIndustries.length) {
 								const companiesInclude = ((contactSearchBody.filters as IDataObject)
 									.companies as IDataObject).include as IDataObject;
-								companiesInclude.mainIndustriesIds = companyIndustries;
+								companiesInclude.mainIndustriesIds = companyIndustries.map((id: string) => parseInt(id, 10));
 							}
-							
+
 							// Add company sub-industry filters
-							const companySubIndustries = this.getNodeParameter(
-								'contactSearchFilters.contactSearchCompanySubIndustries',
-								i,
-								[],
-							) as string[];
+							const companySubIndustries = this.getNodeParameter('contactSearchFilters.contactSearchCompanySubIndustries', i, []) as string[];
 							if (companySubIndustries.length) {
 								const companiesInclude = ((contactSearchBody.filters as IDataObject)
 									.companies as IDataObject).include as IDataObject;
-								companiesInclude.subIndustriesIds = companySubIndustries;
+								companiesInclude.subIndustriesIds = companySubIndustries.map((id: string) => parseInt(id, 10));
 							}
-							
-							// Handle employee count min/max dropdowns (from Search Filters collection)
-							const employeeMin = this.getNodeParameter(
-							  'contactSearchFilters.contactSearchCompanyEmployeeMin',
-							  i,
-							  '',
-							) as string;
-							
-							const employeeMax = this.getNodeParameter(
-							  'contactSearchFilters.contactSearchCompanyEmployeeMax',
-							  i,
-							  '',
-							) as string;
-							
+
+							// Handle employee count min/max
+							const employeeMin = this.getNodeParameter('contactSearchFilters.contactSearchCompanyEmployeeMin', i, '') as string;
+							const employeeMax = this.getNodeParameter('contactSearchFilters.contactSearchCompanyEmployeeMax', i, '') as string;
 							if (employeeMin || employeeMax) {
-							  const companiesInclude = ((contactSearchBody.filters as IDataObject)
-							    .companies as IDataObject).include as IDataObject;
-							
-							  const min = employeeMin ? parseInt(employeeMin, 10) : 1;
-							  const max = employeeMax ? parseInt(employeeMax, 10) : 999999;
-							
-							  companiesInclude.sizes = [{ min, max }];
+								const companiesInclude = ((contactSearchBody.filters as IDataObject)
+									.companies as IDataObject).include as IDataObject;
+								const min = employeeMin ? parseInt(employeeMin, 10) : 1;
+								const max = employeeMax ? parseInt(employeeMax, 10) : 999999;
+								companiesInclude.sizes = [{ min, max }];
 							}
-														// Add company revenue filters
-							const companyRevenueMin = this.getNodeParameter(
-								'contactSearchFilters.contactSearchCompanyRevenueMin',
-								i,
-								'',
-							) as string;
-							const companyRevenueMax = this.getNodeParameter(
-								'contactSearchFilters.contactSearchCompanyRevenueMax',
-								i,
-								'',
-							) as string;
-							
+
+							// Add company revenue filters
+							const companyRevenueMin = this.getNodeParameter('contactSearchFilters.contactSearchCompanyRevenueMin', i, '') as string;
+							const companyRevenueMax = this.getNodeParameter('contactSearchFilters.contactSearchCompanyRevenueMax', i, '') as string;
 							if (companyRevenueMin || companyRevenueMax) {
 								const companiesInclude = ((contactSearchBody.filters as IDataObject)
 									.companies as IDataObject).include as IDataObject;
-								const revenues: IDataObject[] = [{
+								companiesInclude.revenues = [{
 									min: companyRevenueMin ? parseInt(companyRevenueMin) : 0,
 									max: companyRevenueMax ? parseInt(companyRevenueMax) : 999999999999,
 								}];
-								companiesInclude.revenues = revenues;
 							}
-							
-							// Add company locations
-							const companyCountries = this.getNodeParameter(
-								'contactSearchFilters.contactSearchCompanyCountries',
-								i,
-								[],
-							) as string[];
-							const companyStates = this.getNodeParameter(
-								'contactSearchFilters.contactSearchCompanyStates',
-								i,
-								'',
-							) as string;
-							const companyCities = this.getNodeParameter(
-								'contactSearchFilters.contactSearchCompanyCities',
-								i,
-								'',
-							) as string;
-							
-							const companyLocations: IDataObject[] = [];
-							
+
+							// Add company countries
+							const companyCountries = this.getNodeParameter('contactSearchFilters.contactSearchCompanyCountries', i, []) as string[];
 							if (companyCountries.length) {
-								companyCountries.forEach((country) => {
-									companyLocations.push({ country });
+								const companiesInclude = ((contactSearchBody.filters as IDataObject)
+									.companies as IDataObject).include as IDataObject;
+								companiesInclude.countries = companyCountries;
+							}
+
+							// Add company locations
+							const companyStates = this.getNodeParameter('contactSearchFilters.contactSearchCompanyStates', i, '') as string;
+							const companyCities = this.getNodeParameter('contactSearchFilters.contactSearchCompanyCities', i, '') as string;
+							const companyLocations: IDataObject[] = [];
+							if (companyStates) {
+								companyStates.split(',').map((s) => s.trim()).filter((s) => s).forEach((state) => {
+									companyLocations.push({ state });
 								});
 							}
-							if (companyStates) {
-								companyStates
-									.split(',')
-									.map((s) => s.trim())
-									.filter((s) => s)
-									.forEach((state) => {
-										companyLocations.push({ state });
-									});
-							}
 							if (companyCities) {
-								companyCities
-									.split(',')
-									.map((c) => c.trim())
-									.filter((c) => c)
-									.forEach((city) => {
-										companyLocations.push({ city });
-									});
+								companyCities.split(',').map((c) => c.trim()).filter((c) => c).forEach((city) => {
+									companyLocations.push({ city });
+								});
 							}
-							
 							if (companyLocations.length) {
 								const companiesInclude = ((contactSearchBody.filters as IDataObject)
 									.companies as IDataObject).include as IDataObject;
 								companiesInclude.locations = companyLocations;
+							}
+
+							// Add technologies
+							const technologies = this.getNodeParameter('contactSearchFilters.contactSearchTechnologies', i, '') as string;
+							if (technologies) {
+								const techList = technologies.split(',').map((t) => t.trim()).filter((t) => t);
+								if (techList.length) {
+									const companiesInclude = ((contactSearchBody.filters as IDataObject)
+										.companies as IDataObject).include as IDataObject;
+									companiesInclude.technologies = techList;
+								}
+							}
+
+							// Add intent topics
+							const intentTopics = this.getNodeParameter('contactSearchFilters.contactSearchIntentTopics', i, '') as string;
+							if (intentTopics) {
+								const topicList = intentTopics.split(',').map((t) => t.trim()).filter((t) => t);
+								if (topicList.length) {
+									const companiesInclude = ((contactSearchBody.filters as IDataObject)
+										.companies as IDataObject).include as IDataObject;
+									companiesInclude.intentTopics = topicList;
+								}
+							}
+
+							// Add NAICS codes
+							const naicsCodes = this.getNodeParameter('contactSearchFilters.contactSearchNaicsCodes', i, '') as string;
+							if (naicsCodes) {
+								const naicsList = naicsCodes.split(',').map((c) => c.trim()).filter((c) => c);
+								if (naicsList.length) {
+									const companiesInclude = ((contactSearchBody.filters as IDataObject)
+										.companies as IDataObject).include as IDataObject;
+									companiesInclude.naicsCodes = naicsList;
+								}
+							}
+
+							// Add SIC codes
+							const sicsCodes = this.getNodeParameter('contactSearchFilters.contactSearchSicsCodes', i, '') as string;
+							if (sicsCodes) {
+								const sicsList = sicsCodes.split(',').map((c) => c.trim()).filter((c) => c);
+								if (sicsList.length) {
+									const companiesInclude = ((contactSearchBody.filters as IDataObject)
+										.companies as IDataObject).include as IDataObject;
+									companiesInclude.sicsCodes = sicsList;
+								}
+							}
+
+							// Add searchText
+							const searchText = this.getNodeParameter('searchAdditionalOptions.searchText', i, '') as string;
+							if (searchText) {
+								(contactSearchBody as IDataObject).searchText = searchText;
+							}
+
+							// Add signals
+							const signalNames = this.getNodeParameter('searchAdditionalOptions.signalNames', i, []) as string[];
+							if (signalNames.length) {
+								const signalStartDate = this.getNodeParameter('searchAdditionalOptions.signalStartDate', i, '') as string;
+								const signalFilter: IDataObject = { types: signalNames };
+								if (signalStartDate) signalFilter.startDate = signalStartDate;
+								(contactSearchBody as IDataObject).signals = signalFilter;
 							}
 
 							requestOptions.body = contactSearchBody;
@@ -1947,153 +2465,134 @@ export class Lusha implements INodeType {
 						}
 
 						case 'enrichFromSearch': {
-							// Get request ID - try from input first, then from parameter
-							let requestId = '';
 							const inputData = items[i];
 							const searchData = inputData.json;
-							
-							// Try to get requestId from input data first
-							if (searchData.requestId) {
-								requestId = searchData.requestId as string;
-							} else {
-								requestId = this.getNodeParameter('requestId', i) as string;
-							}
-							
+
 							const selectionType = this.getNodeParameter('contactSelectionType', i, 'all') as string;
 							let contactIds: string[] = [];
-							
+
 							if (selectionType === 'all') {
-								// Use all contact IDs from search results
 								if (searchData.allContactIds && Array.isArray(searchData.allContactIds)) {
 									contactIds = searchData.allContactIds as string[];
-								} else if (searchData.data && Array.isArray(searchData.data)) {
-									contactIds = searchData.data.map((contact: any) => contact.contactId).filter((id: any) => id);
+								} else {
+									const items: any[] = (searchData.results ?? searchData.data ?? []) as any[];
+									contactIds = items.map((c: any) => c.id || c.contactId).filter(Boolean);
 								}
 							} else if (selectionType === 'new') {
-								// Use only new contact IDs (where isShown = false)
 								if (searchData.newContactIds && Array.isArray(searchData.newContactIds)) {
 									contactIds = searchData.newContactIds as string[];
-								} else if (searchData.data && Array.isArray(searchData.data)) {
-									contactIds = searchData.data
-										.filter((contact: any) => contact.isShown === false)
-										.map((contact: any) => contact.contactId)
-										.filter((id: any) => id);
+								} else {
+									const items: any[] = (searchData.results ?? searchData.data ?? []) as any[];
+									contactIds = items
+										.filter((c: any) => Array.isArray(c.canReveal) && c.canReveal.length > 0)
+										.map((c: any) => c.id || c.contactId)
+										.filter(Boolean);
 								}
 							} else if (selectionType === 'specific') {
 								const idsInput = this.getNodeParameter('contactIds', i, '') as string;
-								contactIds = idsInput
-									.split(',')
-									.map((id) => id.trim())
-									.filter((id) => id);
+								contactIds = idsInput.split(',').map((id) => id.trim()).filter(Boolean);
 							}
 
-							// Ensure we have valid IDs
 							if (!contactIds.length) {
 								throw new Error('No contact IDs found. Ensure the search operation returned results.');
 							}
 
-							requestOptions.url = '/prospecting/contact/enrich';
+							requestOptions.url = '/v3/contacts/enrich';
 							requestOptions.method = 'POST';
 							if (!requestOptions.headers) requestOptions.headers = {};
 							requestOptions.headers['Content-Type'] = 'application/json';
 							delete requestOptions.qs;
 
-							requestOptions.body = {
-								requestId,
-								contactIds,
-							};
+							requestOptions.body = { ids: contactIds, reveal: ['emails', 'phones'] };
 							break;
 						}
 
 						case 'enrichBulk': {
-							requestOptions.url = '/v2/person';
+							requestOptions.url = '/v3/contacts/search-and-enrich';
 							requestOptions.method = 'POST';
 							if (!requestOptions.headers) requestOptions.headers = {};
 							requestOptions.headers['Content-Type'] = 'application/json';
 							delete requestOptions.qs;
 
-							const bulkType = this.getNodeParameter('bulkType', i, 'simple') as string;
+							const bulkType = this.getNodeParameter('bulkType', i, 'emailList') as string;
 
-							if (bulkType === 'simple') {
+							if (bulkType === 'emailList') {
+								const emailListRaw = this.getNodeParameter('bulkEmailList', i, '') as string;
+								const emails = emailListRaw
+									.split(',')
+									.map((e) => e.trim())
+									.filter((e) => e);
+								if (emails.length === 0) throw new Error('Email Addresses field is empty.');
+								const contacts = emails.map((email, idx) => ({
+									clientReferenceId: String(idx + 1),
+									email,
+								}));
+								const bulkRevealEmails = this.getNodeParameter('contactBulkAdditionalOptions.bulkRevealEmails', i, false) as boolean;
+								const bulkRevealPhones = this.getNodeParameter('contactBulkAdditionalOptions.bulkRevealPhones', i, false) as boolean;
+								const bulkFilterByEmail = this.getNodeParameter('contactBulkAdditionalOptions.bulkFilterBy', i, '') as string;
+								const reveal: string[] = [];
+								if (bulkRevealEmails) reveal.push('emails');
+								if (bulkRevealPhones) reveal.push('phones');
+								if (reveal.length === 0) reveal.push('emails', 'phones');
+								const emailListBody: IDataObject = { contacts, reveal };
+								if (bulkFilterByEmail) emailListBody.filterBy = bulkFilterByEmail;
+								requestOptions.body = emailListBody;
+							} else if (bulkType === 'simple') {
 								const contactsList = this.getNodeParameter('contactsList', i, {}) as IDataObject;
 								const contacts: IDataObject[] = [];
 
 								if (contactsList.contact && Array.isArray(contactsList.contact)) {
-									let contactIdCounter = 1;
 									(contactsList.contact as IDataObject[]).forEach((contact) => {
-										const contactData: IDataObject = {
-											contactId: String(contactIdCounter++),
-										};
-										
-										// Add only one identifier per contact - prioritize email
-										if (contact.email) {
-											contactData.email = contact.email;
-										} else if (contact.linkedinUrl) {
-											contactData.linkedinUrl = contact.linkedinUrl;
-										} else if (contact.fullName) {
-											// Use fullName with companies array structure
-											contactData.fullName = contact.fullName;
-											
-											// Build companies array if company info is provided
-											const companies: IDataObject[] = [];
-											if (contact.companyName || contact.companyDomain) {
-												const company: IDataObject = {
-													isCurrent: true, // Default to current company
-												};
-												
-												// Use either name or domain
-												if (contact.companyDomain) {
-													company.domain = contact.companyDomain;
-												} else if (contact.companyName) {
-													company.name = contact.companyName;
-												}
-												
-												companies.push(company);
+										const splitVals = (v: any) => v ? String(v).split(',').map((s: string) => s.trim()).filter((s: string) => s) : [];
+										const emails = splitVals(contact.email);
+										const linkedinUrls = splitVals(contact.linkedinUrl);
+										if (emails.length > 1) {
+											emails.forEach((email: string) => contacts.push({ clientReferenceId: String(contacts.length + 1), email }));
+										} else if (linkedinUrls.length > 1) {
+											linkedinUrls.forEach((linkedinUrl: string) => contacts.push({ clientReferenceId: String(contacts.length + 1), linkedinUrl }));
+										} else {
+											const contactData: IDataObject = { clientReferenceId: String(contacts.length + 1) };
+											if (contact.email) contactData.email = String(contact.email).trim();
+											else if (contact.linkedinUrl) contactData.linkedinUrl = String(contact.linkedinUrl).trim();
+											else if (contact.fullName) {
+												const nameParts = (contact.fullName as string).trim().split(' ');
+												contactData.firstName = nameParts[0] ?? '';
+												contactData.lastName = nameParts.slice(1).join(' ') || '';
+												if (contact.companyDomain) contactData.companyDomain = contact.companyDomain;
+												else if (contact.companyName) contactData.companyName = contact.companyName;
 											}
-											
-											if (companies.length > 0) {
-												contactData.companies = companies;
-											}
-										}
-										
-										if (Object.keys(contactData).length > 1) { // Must have contactId + identifier
-											contacts.push(contactData);
+											if (Object.keys(contactData).length > 1) contacts.push(contactData);
 										}
 									});
 								}
 
-								// Build metadata object (from collection)
-								const metadata: IDataObject = {};
-								
-								const filterBy = this.getNodeParameter(
-									'contactBulkAdditionalOptions.bulkFilterBy',
-									i,
-									'',
-								) as string;
-								
-								if (filterBy) metadata.filterBy = filterBy;
-								
-								const revealEmails = this.getNodeParameter(
+								const bulkRevealEmails = this.getNodeParameter(
 									'contactBulkAdditionalOptions.bulkRevealEmails',
 									i,
 									false,
 								) as boolean;
-								
-								const revealPhones = this.getNodeParameter(
+
+								const bulkRevealPhones = this.getNodeParameter(
 									'contactBulkAdditionalOptions.bulkRevealPhones',
 									i,
 									false,
 								) as boolean;
-								
-								if (revealEmails) metadata.revealEmails = true;
-								if (revealPhones) metadata.revealPhones = true;
 
-								requestOptions.body = {
-									contacts,
-									metadata,
-								};
+								const bulkFilterBySimple = this.getNodeParameter(
+									'contactBulkAdditionalOptions.bulkFilterBy',
+									i,
+									'',
+								) as string;
+
+								const reveal: string[] = [];
+								if (bulkRevealEmails) reveal.push('emails');
+								if (bulkRevealPhones) reveal.push('phones');
+								if (reveal.length === 0) reveal.push('emails', 'phones');
+
+								const simpleBody: IDataObject = { contacts, reveal };
+								if (bulkFilterBySimple) simpleBody.filterBy = bulkFilterBySimple;
+								requestOptions.body = simpleBody;
 							} else {
-								// Advanced JSON mode
 								const payloadRaw = this.getNodeParameter(
 									'contactsPayloadJson',
 									i,
@@ -2111,39 +2610,187 @@ export class Lusha implements INodeType {
 							}
 							break;
 						}
+					case 'searchAndEnrich': {
+							requestOptions.url = '/v3/contacts/search-and-enrich';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs;
+
+							const seContacts = this.getNodeParameter('searchAndEnrichContacts', i, {}) as IDataObject;
+							const seContactList: IDataObject[] = [];
+
+							if (seContacts.contact && Array.isArray(seContacts.contact)) {
+								(seContacts.contact as IDataObject[]).forEach((item) => {
+									const splitVals = (v: any) => v ? String(v).split(',').map((s: string) => s.trim()).filter((s: string) => s) : [];
+									const emails = splitVals(item.email);
+									const linkedinUrls = splitVals(item.linkedinUrl);
+									const lushaIds = splitVals(item.lushaId);
+									if (emails.length > 1) {
+										emails.forEach((email: string) => seContactList.push({ clientReferenceId: String(seContactList.length + 1), email }));
+									} else if (linkedinUrls.length > 1) {
+										linkedinUrls.forEach((linkedinUrl: string) => seContactList.push({ clientReferenceId: String(seContactList.length + 1), linkedinUrl }));
+									} else if (lushaIds.length > 1) {
+										lushaIds.forEach((id: string) => seContactList.push({ clientReferenceId: String(seContactList.length + 1), id }));
+									} else {
+										const entry: IDataObject = { clientReferenceId: item.clientReferenceId ? item.clientReferenceId : String(seContactList.length + 1) };
+										if (item.lushaId) entry.id = String(item.lushaId).trim();
+										else if (item.email) entry.email = String(item.email).trim();
+										else if (item.linkedinUrl) entry.linkedinUrl = String(item.linkedinUrl).trim();
+										else {
+											if (item.firstName) entry.firstName = item.firstName;
+											if (item.lastName) entry.lastName = item.lastName;
+											if (item.companyDomain) entry.companyDomain = item.companyDomain;
+											else if (item.companyName) entry.companyName = item.companyName;
+										}
+										seContactList.push(entry);
+									}
+								});
+							}
+
+							if (seContactList.length === 0) throw new Error('Add at least one contact to the Contacts list.');
+
+							const seReveal = this.getNodeParameter('searchAndEnrichReveal', i, ['emails', 'phones']) as string[];
+							if (seReveal.length === 0) seReveal.push('emails', 'phones');
+
+							requestOptions.body = { contacts: seContactList, reveal: seReveal };
+							break;
+						}
+					case 'searchLookalikes': {
+							requestOptions.url = '/v3/contacts/lookalike';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs;
+
+							const seedType = this.getNodeParameter('contactLookalikeSeedType', i, 'emails') as string;
+							const seedsCollection = this.getNodeParameter('contactLookalikeSeeds', i, {}) as IDataObject;
+							const seedItems = (seedsCollection.seed as IDataObject[] | undefined) ?? [];
+							const limit = this.getNodeParameter('contactLookalikeLimit', i, 25) as number;
+							const dedupeSessionId = this.getNodeParameter('contactLookalikeOptions.dedupeSessionId', i, '') as string;
+							const excludeEmails = this.getNodeParameter('contactLookalikeOptions.excludeEmails', i, '') as string;
+
+							const splitSeedVals = (items: IDataObject[]) =>
+								items.flatMap((s: any) => s.value ? String(s.value).split(',').map((v: string) => v.trim()).filter((v: string) => v) : []);
+
+							const seeds: IDataObject = {};
+							if (seedType === 'emails') {
+								seeds.emails = splitSeedVals(seedItems);
+							} else if (seedType === 'linkedinUrls') {
+								seeds.linkedinUrls = splitSeedVals(seedItems);
+							} else if (seedType === 'contactIds') {
+								seeds.contactIds = splitSeedVals(seedItems).map(Number).filter(Boolean);
+							} else if (seedType === 'nameAndCompany') {
+								seeds.contacts = seedItems
+									.filter((s: any) => s.firstName || s.lastName)
+									.map((s: any) => {
+										const c: IDataObject = {
+											firstName: s.firstName ?? '',
+											lastName: s.lastName ?? '',
+										};
+										if (s.companyDomain) c.companyDomain = s.companyDomain;
+										else if (s.companyName) c.companyName = s.companyName;
+										return c;
+									});
+							}
+
+							const body: IDataObject = { seeds, limit };
+							if (dedupeSessionId) body.dedupeSessionId = dedupeSessionId;
+							if (excludeEmails) {
+								body.exclude = {
+									emails: excludeEmails.split(',').map((e: string) => e.trim()).filter(Boolean),
+								};
+							}
+
+							requestOptions.body = body;
+							break;
+						}
 					}
 				}
 
 				// ===================== COMPANY OPERATIONS =====================
 				if (resource === 'company') {
 					switch (operation) {
-						case 'enrichSingle': {
-							const companySearchBy = this.getNodeParameter(
-								'companySearchBy',
-								i,
-							) as string;
+						case 'searchCompanies': {
+							// POST /v3/companies/search — identifier-based lookup
+							requestOptions.url = '/v3/companies/search';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs;
 
-							// Single company enrich
-							requestOptions.url = '/company';
-							requestOptions.method = 'GET';
-							delete requestOptions.body;
-							requestOptions.qs = {};
+							const companyInputMode = this.getNodeParameter('searchCompaniesInputMode', i, 'simple') as string;
+							const companiesArr: IDataObject[] = [];
+							let compRefCounter = 1;
 
-							if (companySearchBy === 'domain') {
-								const domain = this.getNodeParameter('domain', i) as string;
-								requestOptions.qs.domain = domain;
-							} else if (companySearchBy === 'name') {
-								const companyName = this.getNodeParameter(
-									'companyName',
-									i,
-								) as string;
-								requestOptions.qs.company = companyName;
+							if (companyInputMode === 'simple') {
+								const simpleInput = this.getNodeParameter('searchCompaniesSimpleInput', i, '') as string;
+								simpleInput.split(',').map(s => s.trim()).filter(s => s).forEach(val => {
+									const c: IDataObject = { clientReferenceId: String(compRefCounter++) };
+									if (/^\d+$/.test(val)) {
+										c.id = val;
+									} else if (val.includes('.')) {
+										c.domain = val;
+									} else {
+										c.name = val;
+									}
+									companiesArr.push(c);
+								});
+							} else {
+								const companiesList = this.getNodeParameter('searchCompaniesList', i, { company: [] }) as IDataObject;
+								const companyEntries = (companiesList.company as IDataObject[]) ?? [];
+								companyEntries.forEach((entry) => {
+									// If domain contains commas, split into multiple entries
+									const domains = entry.domain ? String(entry.domain).split(',').map((s: string) => s.trim()).filter((s: string) => s) : [];
+									const names = entry.name ? String(entry.name).split(',').map((s: string) => s.trim()).filter((s: string) => s) : [];
+									const ids = entry.id ? String(entry.id).split(',').map((s: string) => s.trim()).filter((s: string) => s) : [];
+
+									if (domains.length > 1) {
+										domains.forEach((domain: string) => {
+											companiesArr.push({ clientReferenceId: String(compRefCounter++), domain });
+										});
+									} else if (names.length > 1) {
+										names.forEach((name: string) => {
+											companiesArr.push({ clientReferenceId: String(compRefCounter++), name });
+										});
+									} else if (ids.length > 1) {
+										ids.forEach((id: string) => {
+											companiesArr.push({ clientReferenceId: String(compRefCounter++), id });
+										});
+									} else {
+										const c: IDataObject = {};
+										if (entry.clientReferenceId) c.clientReferenceId = entry.clientReferenceId;
+										else c.clientReferenceId = String(compRefCounter++);
+										if (entry.id) c.id = String(entry.id).trim();
+										if (entry.name) c.name = String(entry.name).trim();
+										if (entry.domain) c.domain = String(entry.domain).trim();
+										if (Object.keys(c).length > 1) companiesArr.push(c);
+									}
+								});
 							}
+
+							const searchCompaniesBody: IDataObject = { companies: companiesArr };
+
+							const searchCompaniesOptions = this.getNodeParameter('searchCompaniesOptions', i, {}) as IDataObject;
+							if (searchCompaniesOptions.includePartialProfiles) {
+								searchCompaniesBody.options = { includePartialProfiles: true };
+							}
+
+							const companySignalTypes = (searchCompaniesOptions.signalTypes as string[]) ?? [];
+							if (companySignalTypes.length) {
+								const signalFilter: IDataObject = { types: companySignalTypes };
+								if (searchCompaniesOptions.signalStartDate) signalFilter.startDate = searchCompaniesOptions.signalStartDate;
+								if (searchCompaniesOptions.maxResultsPerSignal) signalFilter.maxResultsPerSignal = searchCompaniesOptions.maxResultsPerSignal;
+								searchCompaniesBody.signals = signalFilter;
+							}
+
+							requestOptions.body = searchCompaniesBody;
 							break;
 						}
 
-						case 'searchCompanies': {
-							requestOptions.url = '/prospecting/company/search';
+						case 'prospectingCompanies': {
+							// POST /v3/companies/prospecting — filter-based ICP discovery
+							requestOptions.url = '/v3/companies/prospecting';
 							requestOptions.method = 'POST';
 							if (!requestOptions.headers) requestOptions.headers = {};
 							requestOptions.headers['Content-Type'] = 'application/json';
@@ -2151,9 +2798,9 @@ export class Lusha implements INodeType {
 
 							const page = this.getNodeParameter('searchAdditionalOptions.page', i, 0) as number;
 							const pageSize = this.getNodeParameter('searchAdditionalOptions.pageSize', i, 50) as number;
-							
+
 							const companySearchBody: IDataObject = {
-								pages: {
+								pagination: {
 									page,
 									size: Math.min(pageSize, 50),
 								},
@@ -2167,133 +2814,63 @@ export class Lusha implements INodeType {
 							const companiesInclude = companies.include as IDataObject;
 
 							// Names / domains
-							const searchCompanyDomains = this.getNodeParameter(
-								'searchCompanyDomains',
-								i,
-								'',
-							) as string;
+							const searchCompanyDomains = this.getNodeParameter('searchCompanyDomains', i, '') as string;
 							if (searchCompanyDomains) {
-								const companyList = searchCompanyDomains
-									.split(',')
-									.map((c) => c.trim())
-									.filter((c) => c);
-
+								const companyList = searchCompanyDomains.split(',').map((c) => c.trim()).filter((c) => c);
 								const domains = companyList.filter((c) => c.includes('.'));
 								const names = companyList.filter((c) => !c.includes('.'));
-
 								if (domains.length) companiesInclude.domains = domains;
 								if (names.length) companiesInclude.names = names;
 							}
 
 							// Company countries / states / cities => locations[]
-							const companyCountries = this.getNodeParameter(
-								'companyCountries',
-								i,
-								[],
-							) as string[];
-							const companyStates = this.getNodeParameter(
-								'companySearchFilters.companyStates',
-								i,
-								'',
-							) as string;
-							const companyCities = this.getNodeParameter(
-								'companySearchFilters.companyCities',
-								i,
-								'',
-							) as string;
+							const companyCountries = this.getNodeParameter('companyCountries', i, []) as string[];
+							const companyStates = this.getNodeParameter('companySearchFilters.companyStates', i, '') as string;
+							const companyCities = this.getNodeParameter('companySearchFilters.companyCities', i, '') as string;
 
 							const companyLocations: IDataObject[] = [];
-
 							if (companyCountries.length) {
 								companyCountries.forEach((country) => companyLocations.push({ country }));
 							}
 							if (companyStates) {
-								companyStates
-									.split(',')
-									.map((s) => s.trim())
-									.filter((s) => s)
-									.forEach((state) => companyLocations.push({ state }));
+								companyStates.split(',').map((s) => s.trim()).filter((s) => s).forEach((state) => companyLocations.push({ state }));
 							}
 							if (companyCities) {
-								companyCities
-									.split(',')
-									.map((c) => c.trim())
-									.filter((c) => c)
-									.forEach((city) => companyLocations.push({ city }));
+								companyCities.split(',').map((c) => c.trim()).filter((c) => c).forEach((city) => companyLocations.push({ city }));
 							}
 							if (companyLocations.length) {
 								companiesInclude.locations = companyLocations;
 							}
 
-							// Handle employee count min/max dropdowns
-							const employeeMin = this.getNodeParameter(
-								'companySearchFilters.companyEmployeeMin',
-								i,
-								'',
-							) as string;
-							const employeeMax = this.getNodeParameter(
-								'companySearchFilters.companyEmployeeMax',
-								i,
-								'',
-							) as string;
-							
+							// Employee count min/max
+							const employeeMin = this.getNodeParameter('companySearchFilters.companyEmployeeMin', i, '') as string;
+							const employeeMax = this.getNodeParameter('companySearchFilters.companyEmployeeMax', i, '') as string;
 							if (employeeMin || employeeMax) {
 								const min = employeeMin ? parseInt(employeeMin) : 1;
 								const max = employeeMax ? parseInt(employeeMax) : 999999;
-								
 								companiesInclude.sizes = [{ min, max }];
 							}
 
 							// Main industry IDs
-							const companyMainIndustryIds = this.getNodeParameter(
-								'companySearchFilters.companyMainIndustryIds',
-								i,
-								[],
-							) as string[];
+							const companyMainIndustryIds = this.getNodeParameter('companySearchFilters.companyMainIndustryIds', i, []) as string[];
 							if (companyMainIndustryIds.length) {
-								companiesInclude.mainIndustriesIds = companyMainIndustryIds;
+								companiesInclude.mainIndustriesIds = companyMainIndustryIds.map((id: string) => parseInt(id, 10));
 							}
-							
+
 							// Sub-industry IDs
-							const companySubIndustryIds = this.getNodeParameter(
-								'companySearchFilters.companySubIndustryIds',
-								i,
-								[],
-							) as string[];
+							const companySubIndustryIds = this.getNodeParameter('companySearchFilters.companySubIndustryIds', i, []) as string[];
 							if (companySubIndustryIds.length) {
-								companiesInclude.subIndustriesIds = companySubIndustryIds;
+								companiesInclude.subIndustriesIds = companySubIndustryIds.map((id: string) => parseInt(id, 10));
 							}
 
-							// Revenue min / max - should be "revenues" array
-							const companyRevenueMin = this.getNodeParameter(
-								'companySearchFilters.companyRevenueMin',
-								i,
-								'',
-							) as string;
-							const companyRevenueMax = this.getNodeParameter(
-								'companySearchFilters.companyRevenueMax',
-								i,
-								'',
-							) as string;
-
+							// Revenue min / max
+							const companyRevenueMin = this.getNodeParameter('companySearchFilters.companyRevenueMin', i, '') as string;
+							const companyRevenueMax = this.getNodeParameter('companySearchFilters.companyRevenueMax', i, '') as string;
 							if (companyRevenueMin || companyRevenueMax) {
-								const revenues: IDataObject[] = [];
-								const revenueRange: IDataObject = {};
-								
-								if (companyRevenueMin) {
-									revenueRange.min = parseInt(companyRevenueMin);
-								} else {
-									revenueRange.min = 0;
-								}
-								
-								if (companyRevenueMax) {
-									revenueRange.max = parseInt(companyRevenueMax);
-								} else {
-									revenueRange.max = 999999999999; // Very large number if no max
-								}
-								
-								revenues.push(revenueRange);
-								companiesInclude.revenues = revenues;
+								companiesInclude.revenues = [{
+									min: companyRevenueMin ? parseInt(companyRevenueMin) : 0,
+									max: companyRevenueMax ? parseInt(companyRevenueMax) : 999999999999,
+								}];
 							}
 
 							requestOptions.body = companySearchBody;
@@ -2301,64 +2878,44 @@ export class Lusha implements INodeType {
 						}
 
 						case 'enrichFromSearch': {
-							// FIXED: Generate a unique requestId (UUID v4)
-							const crypto = require('crypto');
-							const requestId = crypto.randomUUID();
-							
-							// Get company IDs from input or parameters
 							const inputData = items[i];
 							const searchData = inputData.json;
-							
+
 							const selectionType = this.getNodeParameter('companySelectionType', i, 'all') as string;
 							let companiesIds: string[] = [];
-							
+
 							if (selectionType === 'all') {
-								// FIXED: Try to get IDs from various possible fields
 								if (searchData.allCompanyIds && Array.isArray(searchData.allCompanyIds)) {
 									companiesIds = searchData.allCompanyIds as string[];
 								} else if (searchData.data && Array.isArray(searchData.data)) {
-									// Check for both companyId and id fields
-									companiesIds = searchData.data.map((company: any) => 
-										company.companyId || company.id || ''
-									).filter((id: any) => id);
+									companiesIds = (searchData.data as any[]).map((c: any) => c.id || c.companyId || '').filter(Boolean);
 								} else {
-									// Try to get from all input items - check multiple possible fields
 									const allInputItems = this.getInputData();
 									companiesIds = allInputItems
-										.map(item => {
-											const json = item.json;
-											return json.companyId || json.id || json.company_id || '';
-										})
-										.filter(id => id) as string[];
+										.map(item => String(item.json.id || item.json.companyId || item.json.company_id || ''))
+										.filter(Boolean);
 								}
 							} else if (selectionType === 'specific') {
 								const idsInput = this.getNodeParameter('companyIds', i, '') as string;
-								companiesIds = idsInput
-									.split(',')
-									.map((id) => id.trim())
-									.filter((id) => id);
+								companiesIds = idsInput.split(',').map((id) => id.trim()).filter(Boolean);
 							}
 
-							// Ensure we have valid IDs
 							if (!companiesIds.length) {
 								throw new Error('No company IDs found. Ensure the search operation returned results or provide company IDs.');
 							}
 
-							requestOptions.url = '/prospecting/company/enrich';
+							requestOptions.url = '/v3/companies/enrich';
 							requestOptions.method = 'POST';
 							if (!requestOptions.headers) requestOptions.headers = {};
 							requestOptions.headers['Content-Type'] = 'application/json';
 							delete requestOptions.qs;
 
-							requestOptions.body = {
-								requestId: requestId,
-								companiesIds: companiesIds, // FIXED: API expects 'companiesIds' not 'companyIds'
-							};
+							requestOptions.body = { ids: companiesIds };
 							break;
 						}
 
 						case 'enrichBulk': {
-							requestOptions.url = '/v2/company';
+							requestOptions.url = '/v3/companies/search-and-enrich';
 							requestOptions.method = 'POST';
 							if (!requestOptions.headers) requestOptions.headers = {};
 							requestOptions.headers['Content-Type'] = 'application/json';
@@ -2371,18 +2928,19 @@ export class Lusha implements INodeType {
 								const companies: IDataObject[] = [];
 
 								if (companiesList.company && Array.isArray(companiesList.company)) {
-									let companyIdCounter = 1;
 									(companiesList.company as IDataObject[]).forEach((company) => {
-										const companyData: IDataObject = {
-											id: String(companyIdCounter++),
-										};
-										
-										// Add either name or domain
-										if (company.name) companyData.name = company.name;
-										if (company.domain) companyData.domain = company.domain;
-
-										if (Object.keys(companyData).length > 1) { // Must have id + identifier
-											companies.push(companyData);
+										const splitVals = (v: any) => v ? String(v).split(',').map((s: string) => s.trim()).filter((s: string) => s) : [];
+										const domains = splitVals(company.domain);
+										const names = splitVals(company.name);
+										if (domains.length > 1) {
+											domains.forEach((domain: string) => companies.push({ clientReferenceId: String(companies.length + 1), domain }));
+										} else if (names.length > 1) {
+											names.forEach((name: string) => companies.push({ clientReferenceId: String(companies.length + 1), name }));
+										} else {
+											const companyData: IDataObject = { clientReferenceId: String(companies.length + 1) };
+											if (company.domain) companyData.domain = String(company.domain).trim();
+											if (company.name) companyData.name = String(company.name).trim();
+											if (Object.keys(companyData).length > 1) companies.push(companyData);
 										}
 									});
 								}
@@ -2409,6 +2967,79 @@ export class Lusha implements INodeType {
 							}
 							break;
 						}
+					case 'searchAndEnrich': {
+							requestOptions.url = '/v3/companies/search-and-enrich';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs;
+
+							const seCompanies = this.getNodeParameter('searchAndEnrichCompanies', i, {}) as IDataObject;
+							const seCompanyList: IDataObject[] = [];
+
+							if (seCompanies.company && Array.isArray(seCompanies.company)) {
+								(seCompanies.company as IDataObject[]).forEach((item) => {
+									const splitVals = (v: any) => v ? String(v).split(',').map((s: string) => s.trim()).filter((s: string) => s) : [];
+									const domains = splitVals(item.domain);
+									const names = splitVals(item.name);
+									const lushaIds = splitVals(item.lushaId);
+									if (domains.length > 1) {
+										domains.forEach((domain: string) => seCompanyList.push({ clientReferenceId: String(seCompanyList.length + 1), domain }));
+									} else if (names.length > 1) {
+										names.forEach((name: string) => seCompanyList.push({ clientReferenceId: String(seCompanyList.length + 1), name }));
+									} else if (lushaIds.length > 1) {
+										lushaIds.forEach((id: string) => seCompanyList.push({ clientReferenceId: String(seCompanyList.length + 1), id }));
+									} else {
+										const entry: IDataObject = { clientReferenceId: item.clientReferenceId ? item.clientReferenceId : String(seCompanyList.length + 1) };
+										if (item.lushaId) entry.id = String(item.lushaId).trim();
+										else if (item.domain) entry.domain = String(item.domain).trim();
+										else if (item.linkedinUrl) entry.linkedinUrl = String(item.linkedinUrl).trim();
+										else if (item.name) entry.name = String(item.name).trim();
+										seCompanyList.push(entry);
+									}
+								});
+							}
+
+							if (seCompanyList.length === 0) throw new Error('Add at least one company to the Companies list.');
+
+							requestOptions.body = { companies: seCompanyList };
+							break;
+						}
+					case 'searchLookalikes': {
+							requestOptions.url = '/v3/companies/lookalike';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs;
+
+							const companySeedType = this.getNodeParameter('companyLookalikeSeedType', i, 'domains') as string;
+							const companySeedsCollection = this.getNodeParameter('companyLookalikeSeeds', i, {}) as IDataObject;
+							const companySeedItems = (companySeedsCollection.seed as IDataObject[] | undefined) ?? [];
+							const companyLimit = this.getNodeParameter('companyLookalikeLimit', i, 25) as number;
+							const companyDedupeId = this.getNodeParameter('companyLookalikeOptions.dedupeSessionId', i, '') as string;
+							const excludeDomains = this.getNodeParameter('companyLookalikeOptions.excludeDomains', i, '') as string;
+
+							const splitCompanySeedVals = (items: IDataObject[]) =>
+								items.flatMap((s: any) => s.value ? String(s.value).split(',').map((v: string) => v.trim()).filter((v: string) => v) : []);
+
+							const companySeeds: IDataObject = {};
+							if (companySeedType === 'domains') {
+								companySeeds.domains = splitCompanySeedVals(companySeedItems);
+							} else if (companySeedType === 'linkedinUrls') {
+								companySeeds.linkedinUrls = splitCompanySeedVals(companySeedItems);
+							}
+
+							const companyBody: IDataObject = { seeds: companySeeds, limit: companyLimit };
+							if (companyDedupeId) companyBody.dedupeSessionId = companyDedupeId;
+							if (excludeDomains) {
+								companyBody.exclude = {
+									domains: excludeDomains.split(',').map((d: string) => d.trim()).filter(Boolean),
+								};
+							}
+
+							requestOptions.body = companyBody;
+							break;
+						}
 					}
 				}
 
@@ -2421,182 +3052,41 @@ export class Lusha implements INodeType {
 
 				let json: IDataObject = response as IDataObject;
 
-				// ===================== FRIENDLY CONTACT ENRICH OUTPUT =====================
-				if (resource === 'contact' && operation === 'enrichSingle') {
-					const simplified = this.getNodeParameter(
-						'contactEnrichAdditionalOptions.contactSimplifiedOutput',
-						i,
-						true,
-					) as boolean;
-
-					if (simplified) {
-						const raw = response as any;
-						const contact = raw?.contact?.data ?? {};
-
-						const primaryEmail = Array.isArray(contact.emailAddresses)
-							? contact.emailAddresses[0]
-							: undefined;
-						const primaryPhone = Array.isArray(contact.phoneNumbers)
-							? contact.phoneNumbers[0]
-							: undefined;
-
-						const company = contact.company ?? {};
-						const location = contact.location ?? {};
-
-						json = {
-							// High-level contact info
-							firstName: contact.firstName ?? '',
-							lastName: contact.lastName ?? '',
-							fullName: contact.fullName ?? '',
-							personId: contact.personId ?? '',
-							jobTitle: contact.jobTitle?.title ?? '',
-							departments: contact.jobTitle?.departments ?? [],
-							seniority: contact.jobTitle?.seniority ?? '',
-
-							// Primary contact channels
-							primaryEmail: primaryEmail?.email ?? '',
-							primaryEmailType: primaryEmail?.emailType ?? '',
-							primaryEmailConfidence: primaryEmail?.emailConfidence ?? '',
-							primaryPhone: primaryPhone?.number ?? '',
-							primaryPhoneType: primaryPhone?.phoneType ?? '',
-							primaryPhoneDoNotCall: primaryPhone?.doNotCall ?? false,
-
-							// Location
-							locationCountry: location.country ?? '',
-							locationCountryIso2: location.country_iso2 ?? '',
-							locationContinent: location.continent ?? '',
-							locationCity: location.city ?? '',
-							locationState: location.state ?? '',
-							locationStateCode: location.state_code ?? '',
-							locationCoordinates: location.location_coordinates ?? [],
-
-							// Social
-							linkedinProfile: contact.socialLinks?.linkedin ?? '',
-
-							// Company basic info
-							companyName: company.name ?? '',
-							companyDomain: company.domain ?? company.fqdn ?? '',
-							companyDescription: company.description ?? '',
-							companyHomepage: company.homepageUrl ?? '',
-							companySize: company.companySize ?? [],
-							revenueRange: company.revenueRange ?? [],
-							companyMainIndustry: company.mainIndustry ?? '',
-							companySubIndustry: company.subIndustry ?? '',
-							companyLogoUrl: company.logoUrl ?? '',
-							companyLinkedin: company.social?.linkedin ?? '',
-							companyCrunchbase: company.social?.crunchbase ?? '',
-
-							// Company location
-							companyLocation: company.location?.rawLocation ?? '',
-							companyLocationCity: company.location?.city ?? '',
-							companyLocationState: company.location?.state ?? '',
-							companyLocationStateCode: company.location?.stateCode ?? '',
-							companyLocationCountry: company.location?.country ?? '',
-							companyLocationCountryIso2: company.location?.countryIso2 ?? '',
-							companyLocationContinent: company.location?.continent ?? '',
-							companyLocationCoordinates:
-								company.location?.locationCoordinates ?? [],
-
-							// Extras
-							specialities: company.specialities ?? [],
-							technologies: (company.technologies ?? []).map(
-								(t: any) => t.name,
-							),
-
-							// Keep everything for debugging / full access
-							raw,
-						};
-					}
-				}
-
-				// ===================== FRIENDLY COMPANY ENRICH OUTPUT =====================
-				if (resource === 'company' && operation === 'enrichSingle') {
-					const simplified = this.getNodeParameter(
-						'companyEnrichAdditionalOptions.companySimplifiedOutput',
-						i,
-						true,
-					) as boolean;
-
-					if (simplified) {
-						const raw = response as any;
-						// company enrich returns the payload directly or under data – cover both cases
-						const company = raw?.data ?? raw;
-
-						const location = company.location ?? {};
-						const social = company.social ?? {};
-
-						json = {
-							companyId: company.id ?? company.companyId ?? '',
-							name: company.name ?? '',
-							domain: company.domain ?? company.fqdn ?? '',
-							description: company.description ?? '',
-							employees: company.employees ?? '',
-							founded: company.founded ?? '',
-							fqdn: company.fqdn ?? '',
-							logoUrl: company.logoUrl ?? '',
-							mainIndustry: company.mainIndustry ?? '',
-							subIndustry: company.subIndustry ?? '',
-							companySize: company.companySize ?? [],
-							revenueRange: company.revenueRange ?? [],
-
-							locationCity: location.city ?? '',
-							locationState: location.state ?? '',
-							locationStateCode: location.stateCode ?? '',
-							locationCountry: location.country ?? '',
-							locationCountryIso2: location.countryIso2 ?? '',
-							locationContinent: location.continent ?? '',
-							locationFullLocation:
-								location.fullLocation ?? location.rawLocation ?? '',
-							locationCoordinates: location.locationCoordinates ?? [],
-
-							linkedinProfile: social.linkedin?.url ?? social.linkedin ?? '',
-							crunchbaseProfile:
-								social.crunchbase?.url ?? social.crunchbase ?? '',
-
-							categories: company.categories ?? [],
-							specialities: company.specialities ?? [],
-							technologies: (company.technologies ?? []).map(
-								(t: any) => t.name,
-							),
-
-							// Funding & intent – keep raw structures
-							funding: company.funding ?? {},
-							intent: company.intent ?? {},
-
-							raw,
-						};
-					}
-				}
-
 				// ===================== HANDLE SEARCH RESULTS =====================
-				if ((resource === 'contact' && operation === 'searchContacts') ||
-					(resource === 'company' && operation === 'searchCompanies')) {
+				if ((resource === 'contact' && (operation === 'searchContacts' || operation === 'prospectingContacts')) ||
+					(resource === 'company' && (operation === 'searchCompanies' || operation === 'prospectingCompanies'))) {
 					const searchResponse = response as any;
 					
 					// Add additional fields for easier workflow usage
-					if (searchResponse.data && Array.isArray(searchResponse.data)) {
+					// v3 prospecting returns 'results' array (not 'data')
+					const resultItems: any[] = searchResponse.results ?? searchResponse.data ?? [];
+					if (Array.isArray(resultItems) && resultItems.length > 0) {
 						if (resource === 'contact') {
-							// Extract contact IDs
-							const allContactIds = searchResponse.data.map((item: any) => item.contactId);
-							const visibleContactIds = searchResponse.data
-								.filter((item: any) => item.isShown === true)
-								.map((item: any) => item.contactId);
-							const newContactIds = searchResponse.data
-								.filter((item: any) => item.isShown === false)
-								.map((item: any) => item.contactId);
-							
+							// Rebuild results so clientReferenceId is always the first key
+							const enrichedResults = resultItems.map((item: any, idx: number) => ({
+								clientReferenceId: item.clientReferenceId ?? String(idx + 1),
+								...item,
+							}));
+							searchResponse.results = enrichedResults;
+
+							const allContactIds = enrichedResults.map((item: any) => item.id || item.contactId).filter(Boolean);
+							// v3 uses canReveal to indicate unrevealed contacts; fall back to all
+							const newContactIds = enrichedResults
+								.filter((item: any) => Array.isArray(item.canReveal) && item.canReveal.length > 0)
+								.map((item: any) => item.id || item.contactId)
+								.filter(Boolean);
+
 							json = {
 								...searchResponse,
 								allContactIds,
-								visibleContactIds,
 								newContactIds,
+								visibleContactIds: allContactIds,
 							};
 						} else {
-							// Extract company IDs for company search - FIXED to look for id field
-							const allCompanyIds = searchResponse.data.map((item: any) => 
-								item.companyId || item.id || ''
+							const allCompanyIds = resultItems.map((item: any) =>
+								item.id || item.companyId || ''
 							).filter((id: string) => id);
-							
+
 							json = {
 								...searchResponse,
 								allCompanyIds,
@@ -2610,6 +3100,14 @@ export class Lusha implements INodeType {
 					pairedItem: { item: i },
 				});
 			} catch (error) {
+				if ((error as any)?.response?.status === 451 || (error as any)?.statusCode === 451) {
+					const gdprError = new Error('Request blocked (451): contact data is restricted in your region (GDPR).');
+					if (this.continueOnFail()) {
+						returnData.push({ json: { error: gdprError.message }, pairedItem: { item: i } });
+						continue;
+					}
+					throw gdprError;
+				}
 				if (this.continueOnFail()) {
 					const errorMessage =
 						error instanceof Error ? error.message : 'An error occurred';
