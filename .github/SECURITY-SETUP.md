@@ -6,7 +6,7 @@ The publish workflow uses a protected environment `npm-production` to prevent un
 
 ### Setup Instructions:
 
-#### Part 1: npm Trusted Publisher (CRITICAL - Primary Security Layer)
+#### Part 1: npm Trusted Publisher Configuration
 
 1. **Go to:** https://www.npmjs.com/package/@n8n/n8n-nodes-lusha/access
 
@@ -16,26 +16,34 @@ The publish workflow uses a protected environment `npm-production` to prevent un
    - **Organization/User:** `lusha-oss`
    - **Repository:** `n8n-nodes-lusha`
    - **Workflow filename:** `release.yml`
-   - **Environment:** `npm-production` (optional but recommended)
-   - **Branch/Tag:** `main` ⚠️ **CRITICAL - This enforces main-only at npm registry level**
+   - **Environment:** `npm-production` ⚠️ **REQUIRED for branch protection**
    - **Allowed action:** `npm publish`
 
 4. **Click "Add trusted publisher"**
 
-#### Part 2: GitHub Environment Protection (Defense in Depth)
+**Important:** npm's trusted publisher config does NOT have a branch/tag field. Branch protection comes from GitHub Environment settings (next step).
+
+#### Part 2: GitHub Environment Protection (CRITICAL - Branch Restriction Layer)
 
 1. **Go to:** https://github.com/lusha-oss/n8n-nodes-lusha/settings/environments
 
 2. **Create Environment:**
    - Click "New environment"
-   - Name: `npm-production`
+   - Name: `npm-production` (must match npm config above)
    - Click "Configure environment"
 
 3. **Configure Protection Rules:**
    - ✅ **Required reviewers:** Add trusted maintainers (recommended: at least 1)
    - ✅ **Wait timer:** Optional - add 5-minute delay for rollback window
-   - ✅ **Deployment branches:** Select "Protected branches only"
+   - ✅ **Deployment branches and tags:** Click "Deployment branches and tags" dropdown
+     - Select "Selected branches and tags"
+     - Click "Add deployment branch or tag rule"
+     - Rule type: "Branch"
+     - Branch name pattern: `main` (or use `refs/heads/main`)
+     - Click "Add rule"
    - Click "Save protection rules"
+
+**This is how branch restriction works:** GitHub validates the branch BEFORE the job runs. Feature branch releases are blocked at the GitHub level, before npm is ever contacted.
 
 4. **Set Branch Protection for `main`:**
    - Go to: https://github.com/lusha-oss/n8n-nodes-lusha/settings/branches
@@ -48,33 +56,35 @@ The publish workflow uses a protected environment `npm-production` to prevent un
 
 The publish workflow has multiple security layers:
 
-### 1. **OIDC Token Claims Validation (Primary Security - npm Registry Level)**
+### 1. **OIDC Token Claims Validation (npm Registry Level)**
 npm trusted publisher validates OIDC token claims before accepting publish:
 
 ```
-npm config validates against OIDC token claims:
-- Repository: lusha-oss/n8n-nodes-lusha
-- Branch: main
-- Workflow: release.yml
-- Environment: npm-production (optional)
+npm config validates:
+- Repository: lusha-oss/n8n-nodes-lusha (blocks forks)
+- Workflow: release.yml (blocks other workflows)
+- Environment: npm-production (required for branch protection)
 ```
 
-**How it works:**
-- GitHub issues OIDC token with claims (repo, branch, workflow, environment)
-- npm validates token claims against trusted publisher configuration
-- **Forks are blocked:** Fork token has `repository: attacker/n8n-nodes-lusha` → validation fails
-- **Feature branches blocked:** Feature branch token has `ref: refs/heads/feature` → validation fails
-- Cannot be bypassed by modifying workflow (validation happens at npm registry)
+**Fork protection:** Fork tokens have `repository: attacker/n8n-nodes-lusha` → npm rejects.
 
-This is the **authoritative** security layer - all others are defense in depth.
+**Branch protection comes from GitHub Environment, NOT npm config** (see next layer).
 
-### 2. **Environment Protection**
+### 2. **Branch Restriction (GitHub Environment Level)**
 ```yaml
 environment:
   name: npm-production
 ```
-- Requires manual approval from designated reviewers
-- Creates audit trail for all publishes
+
+GitHub Environment deployment rules enforce branch restrictions:
+- Environment configured with "Deployment branches: main only"
+- GitHub validates branch BEFORE job runs
+- Feature branch releases → job blocked, never reaches npm
+- This is the **authoritative branch protection** layer
+
+Additionally provides:
+- Manual approval from designated reviewers
+- Audit trail for all publishes
 - Prevents automated/accidental publishes
 
 ### 3. **Trigger Restriction**
