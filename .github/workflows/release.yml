@@ -51,6 +51,10 @@ jobs:
   publish-npm:
     needs: build
     runs-on: ubuntu-latest
+    if: github.repository == 'lusha-oss/n8n-nodes-lusha' && github.event.release.target_commitish == 'main'
+    environment:
+      name: npm-production
+      url: https://www.npmjs.com/package/@n8n/n8n-nodes-lusha
 
     steps:
       - name: Checkout repository
