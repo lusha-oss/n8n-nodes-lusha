@@ -6,8 +6,25 @@ The publish workflow uses a protected environment `npm-production` to prevent un
 
 ### Setup Instructions:
 
-1. **Go to Repository Settings:**
-   - Navigate to: https://github.com/lusha-oss/n8n-nodes-lusha/settings/environments
+#### Part 1: npm Trusted Publisher (CRITICAL - Primary Security Layer)
+
+1. **Go to:** https://www.npmjs.com/package/@n8n/n8n-nodes-lusha/access
+
+2. **Click "Publishing" → "Trusted Publisher" → "Add trusted publisher"**
+
+3. **Select "GitHub Actions"** and fill in:
+   - **Organization/User:** `lusha-oss`
+   - **Repository:** `n8n-nodes-lusha`
+   - **Workflow filename:** `release.yml`
+   - **Environment:** `npm-production` (optional but recommended)
+   - **Branch/Tag:** `main` ⚠️ **CRITICAL - This enforces main-only at npm registry level**
+   - **Allowed action:** `npm publish`
+
+4. **Click "Add trusted publisher"**
+
+#### Part 2: GitHub Environment Protection (Defense in Depth)
+
+1. **Go to:** https://github.com/lusha-oss/n8n-nodes-lusha/settings/environments
 
 2. **Create Environment:**
    - Click "New environment"
@@ -38,12 +55,13 @@ if: github.repository == 'lusha-oss/n8n-nodes-lusha'
 - Prevents forks from executing the publish job
 - Malicious forks cannot hijack the workflow
 
-### 2. **Branch Restriction**
-```yaml
-if: github.event.release.target_commitish == 'main'
+### 2. **Branch Restriction (npm Registry Level)**
 ```
-- Only releases created from `main` branch can publish
-- Feature branch releases are blocked
+npm trusted publisher config: branch/tag = "main"
+```
+- npm validates OIDC token claims and rejects non-main branches
+- Enforced at registry level (cannot be bypassed by workflow modification)
+- Token request fails before publish attempt
 
 ### 3. **Environment Protection**
 ```yaml
@@ -64,12 +82,12 @@ on:
 - Pull requests cannot trigger publish
 - Direct pushes cannot trigger publish
 
-### 5. **OIDC Token Scope**
-- npm trusted publisher config limits token to specific:
-  - Organization: `lusha-oss`
-  - Repository: `n8n-nodes-lusha`
-  - Workflow: `release.yml`
-  - Action: `npm publish`
+### 5. **OIDC Token Claims Validation**
+npm trusted publisher validates OIDC token claims against configuration:
+- **Repository:** `lusha-oss/n8n-nodes-lusha` (blocks forks)
+- **Workflow:** `release.yml` (blocks other workflows)
+- **Branch:** `main` (blocks feature branches) ⚠️ **Primary defense**
+- **Environment:** `npm-production` (optional additional validation)
 - Token is single-use and short-lived (15 minutes)
 - Token cannot be extracted or reused
 
