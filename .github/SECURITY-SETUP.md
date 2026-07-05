@@ -48,22 +48,27 @@ The publish workflow uses a protected environment `npm-production` to prevent un
 
 The publish workflow has multiple security layers:
 
-### 1. **Fork Prevention**
-```yaml
-if: github.repository == 'lusha-oss/n8n-nodes-lusha'
-```
-- Prevents forks from executing the publish job
-- Malicious forks cannot hijack the workflow
+### 1. **OIDC Token Claims Validation (Primary Security - npm Registry Level)**
+npm trusted publisher validates OIDC token claims before accepting publish:
 
-### 2. **Branch Restriction (npm Registry Level)**
 ```
-npm trusted publisher config: branch/tag = "main"
+npm config validates against OIDC token claims:
+- Repository: lusha-oss/n8n-nodes-lusha
+- Branch: main
+- Workflow: release.yml
+- Environment: npm-production (optional)
 ```
-- npm validates OIDC token claims and rejects non-main branches
-- Enforced at registry level (cannot be bypassed by workflow modification)
-- Token request fails before publish attempt
 
-### 3. **Environment Protection**
+**How it works:**
+- GitHub issues OIDC token with claims (repo, branch, workflow, environment)
+- npm validates token claims against trusted publisher configuration
+- **Forks are blocked:** Fork token has `repository: attacker/n8n-nodes-lusha` → validation fails
+- **Feature branches blocked:** Feature branch token has `ref: refs/heads/feature` → validation fails
+- Cannot be bypassed by modifying workflow (validation happens at npm registry)
+
+This is the **authoritative** security layer - all others are defense in depth.
+
+### 2. **Environment Protection**
 ```yaml
 environment:
   name: npm-production
@@ -72,7 +77,7 @@ environment:
 - Creates audit trail for all publishes
 - Prevents automated/accidental publishes
 
-### 4. **Trigger Restriction**
+### 3. **Trigger Restriction**
 ```yaml
 on:
   release:
@@ -82,14 +87,10 @@ on:
 - Pull requests cannot trigger publish
 - Direct pushes cannot trigger publish
 
-### 5. **OIDC Token Claims Validation**
-npm trusted publisher validates OIDC token claims against configuration:
-- **Repository:** `lusha-oss/n8n-nodes-lusha` (blocks forks)
-- **Workflow:** `release.yml` (blocks other workflows)
-- **Branch:** `main` (blocks feature branches) ⚠️ **Primary defense**
-- **Environment:** `npm-production` (optional additional validation)
+### 4. **Token Lifecycle**
 - Token is single-use and short-lived (15 minutes)
 - Token cannot be extracted or reused
+- No long-lived credentials stored in GitHub Secrets
 
 ## Publish Process
 
