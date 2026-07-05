@@ -1,14 +1,12 @@
 name: Publish n8n Package
 
 on:
-  push:
-    branches:
-      - main
+  release:
+    types: [published]
 
 permissions:
   contents: read
-  id-token: write
-  packages: write
+  id-token: write  # Required for npm OIDC trusted publishing
 
 jobs:
   build:
@@ -21,8 +19,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 24
+          package-manager-cache: false  # never use caching in release builds
 
       - name: Install dependencies
         run: npm ci
@@ -53,11 +51,10 @@ jobs:
   publish-npm:
     needs: build
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: npm-production
+      url: https://www.npmjs.com/package/@n8n/n8n-nodes-lusha
 
     steps:
       - name: Checkout repository
@@ -72,17 +69,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org/
-          cache: 'npm'
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false  # never use caching in release builds
 
       - name: Install dependencies
         run: npm ci --omit=dev
 
       - name: Publish package to npm
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
+        # No NODE_AUTH_TOKEN needed - npm CLI auto-detects OIDC and uses trusted publishing
 
       - name: Generate checksums
         run: |
