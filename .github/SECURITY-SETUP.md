@@ -33,7 +33,10 @@ View at: https://github.com/lusha-oss/n8n-nodes-lusha/settings/environments/npm-
 7. If valid → publish succeeds
 
 **Attack prevention:**
-- Forks: npm validates `repository` claim
-- Feature branches: GitHub blocks job before OIDC token issued
-- Wrong workflow: npm validates `workflow_ref` claim
+- Forks: npm validates `repository` claim → rejects
+- Feature branches: GitHub environment blocks job before runner starts (+ workflow-level check as defense-in-depth)
+- Modified workflow: npm validates `workflow_ref` claim → rejects if workflow file changed
+- Removed environment: Workflow-level `if: github.ref == 'refs/heads/main'` blocks publish
 - Token theft: OIDC tokens expire in 15min, single-use only
+
+**Note:** Credentials stored only as environment secrets (not repo/org secrets) ensures they're inaccessible if attacker removes `environment` line.
