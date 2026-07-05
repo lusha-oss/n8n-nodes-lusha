@@ -1,15 +1,55 @@
 name: Publish n8n Package
 
 on:
-  release:
-    types: [published]
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
 
 permissions:
-  contents: read
+  contents: write  # Required for version bump commit and release creation
   id-token: write  # Required for npm OIDC trusted publishing
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      
+      - name: Bump version
+        id: bump
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          IFS='.' read -r major minor patch <<< "$CURRENT"
+          NEW_PATCH=$((patch + 1))
+          NEW_VERSION="${major}.${minor}.${NEW_PATCH}"
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          npm version $NEW_VERSION --no-git-tag-version
+      
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }} [skip ci]"
+          git push
+
   build:
+    needs: version
     runs-on: ubuntu-latest
 
     steps:
@@ -51,10 +91,9 @@ jobs:
   publish-npm:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     environment:
       name: npm-production
-      url: https://www.npmjs.com/package/@n8n/n8n-nodes-lusha
+      url: https://www.npmjs.com/package/n8n-nodes-lusha
 
     steps:
       - name: Checkout repository
@@ -79,6 +118,15 @@ jobs:
       - name: Publish package to npm
         run: npm publish --access public
         # No NODE_AUTH_TOKEN needed - npm CLI auto-detects OIDC and uses trusted publishing
+      
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ needs.version.outputs.new_version }}" \
+            --title "v${{ needs.version.outputs.new_version }}" \
+            --generate-notes \
+            --target main
 
       - name: Generate checksums
         run: |
