@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: npm-production
-      url: https://www.npmjs.com/package/n8n-nodes-lusha
+      url: https://www.npmjs.com/package/@lusha-org/n8n-nodes-lusha
 
     steps:
       - name: Checkout repository
