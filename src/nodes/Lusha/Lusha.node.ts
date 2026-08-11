@@ -2508,13 +2508,11 @@ export class Lusha implements INodeType {
 						}
 
 						case 'enrichBulk': {
-							requestOptions.url = '/v3/contacts/search-and-enrich';
-							requestOptions.method = 'POST';
-							if (!requestOptions.headers) requestOptions.headers = {};
-							requestOptions.headers['Content-Type'] = 'application/json';
-							delete requestOptions.qs;
-
 							const bulkType = this.getNodeParameter('bulkType', i, 'emailList') as string;
+
+							let bulkContacts: IDataObject[] = [];
+							const bulkReveal: string[] = [];
+							let bulkFilterBy = '';
 
 							if (bulkType === 'emailList') {
 								const emailListRaw = this.getNodeParameter('bulkEmailList', i, '') as string;
@@ -2523,20 +2521,16 @@ export class Lusha implements INodeType {
 									.map((e) => e.trim())
 									.filter((e) => e);
 								if (emails.length === 0) throw new Error('Email Addresses field is empty.');
-								const contacts = emails.map((email, idx) => ({
+								bulkContacts = emails.map((email, idx) => ({
 									clientReferenceId: String(idx + 1),
 									email,
 								}));
 								const bulkRevealEmails = this.getNodeParameter('contactBulkAdditionalOptions.bulkRevealEmails', i, false) as boolean;
 								const bulkRevealPhones = this.getNodeParameter('contactBulkAdditionalOptions.bulkRevealPhones', i, false) as boolean;
-								const bulkFilterByEmail = this.getNodeParameter('contactBulkAdditionalOptions.bulkFilterBy', i, '') as string;
-								const reveal: string[] = [];
-								if (bulkRevealEmails) reveal.push('emails');
-								if (bulkRevealPhones) reveal.push('phones');
-								if (reveal.length === 0) reveal.push('emails', 'phones');
-								const emailListBody: IDataObject = { contacts, reveal };
-								if (bulkFilterByEmail) emailListBody.filterBy = bulkFilterByEmail;
-								requestOptions.body = emailListBody;
+								bulkFilterBy = this.getNodeParameter('contactBulkAdditionalOptions.bulkFilterBy', i, '') as string;
+								if (bulkRevealEmails) bulkReveal.push('emails');
+								if (bulkRevealPhones) bulkReveal.push('phones');
+								if (bulkReveal.length === 0) bulkReveal.push('emails', 'phones');
 							} else if (bulkType === 'simple') {
 								const contactsList = this.getNodeParameter('contactsList', i, {}) as IDataObject;
 								const contacts: IDataObject[] = [];
@@ -2578,20 +2572,17 @@ export class Lusha implements INodeType {
 									false,
 								) as boolean;
 
-								const bulkFilterBySimple = this.getNodeParameter(
+								bulkFilterBy = this.getNodeParameter(
 									'contactBulkAdditionalOptions.bulkFilterBy',
 									i,
 									'',
 								) as string;
 
-								const reveal: string[] = [];
-								if (bulkRevealEmails) reveal.push('emails');
-								if (bulkRevealPhones) reveal.push('phones');
-								if (reveal.length === 0) reveal.push('emails', 'phones');
+								if (bulkRevealEmails) bulkReveal.push('emails');
+								if (bulkRevealPhones) bulkReveal.push('phones');
+								if (bulkReveal.length === 0) bulkReveal.push('emails', 'phones');
 
-								const simpleBody: IDataObject = { contacts, reveal };
-								if (bulkFilterBySimple) simpleBody.filterBy = bulkFilterBySimple;
-								requestOptions.body = simpleBody;
+								bulkContacts = contacts;
 							} else {
 								const payloadRaw = this.getNodeParameter(
 									'contactsPayloadJson',
@@ -2606,8 +2597,45 @@ export class Lusha implements INodeType {
 									throw new Error('Contacts Payload (JSON) must be valid JSON.');
 								}
 
-								requestOptions.body = payload;
+								bulkContacts = (payload.contacts as IDataObject[]) ?? [];
+								const payloadReveal = (payload.reveal as string[]) ?? [];
+								bulkReveal.push(...(payloadReveal.length ? payloadReveal : ['emails', 'phones']));
+								if (payload.filterBy) bulkFilterBy = String(payload.filterBy);
 							}
+
+							if (!bulkContacts.length) throw new Error('No contacts provided for bulk enrichment.');
+
+							// Step 1: resolve raw identifiers (emails, LinkedIn URLs, names+company) to Lusha contact IDs
+							const bulkSearchBody: IDataObject = { contacts: bulkContacts };
+							if (bulkFilterBy) bulkSearchBody.filterBy = bulkFilterBy;
+
+							const bulkSearchResponse = (await this.helpers.httpRequestWithAuthentication.call(this, 'lushaApi', {
+								baseURL: 'https://api.lusha.com',
+								url: '/v3/contacts/search',
+								method: 'POST',
+								headers: {
+									Accept: 'application/json',
+									'Content-Type': 'application/json',
+									prtnr: 'n8n_connector-prod',
+								},
+								body: bulkSearchBody,
+								json: true,
+							})) as any;
+
+							const bulkSearchResults: any[] = bulkSearchResponse.results ?? bulkSearchResponse.data ?? [];
+							const bulkContactIds = bulkSearchResults
+								.map((item: any) => item.id || item.contactId)
+								.filter(Boolean);
+
+							if (!bulkContactIds.length) throw new Error('No contacts matched during search; nothing to enrich.');
+
+							// Step 2: enrich the resolved IDs
+							requestOptions.url = '/v3/contacts/enrich';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs;
+							requestOptions.body = { ids: bulkContactIds, reveal: bulkReveal };
 							break;
 						}
 					case 'searchAndEnrich': {
@@ -2915,13 +2943,9 @@ export class Lusha implements INodeType {
 						}
 
 						case 'enrichBulk': {
-							requestOptions.url = '/v3/companies/search-and-enrich';
-							requestOptions.method = 'POST';
-							if (!requestOptions.headers) requestOptions.headers = {};
-							requestOptions.headers['Content-Type'] = 'application/json';
-							delete requestOptions.qs;
-
 							const bulkType = this.getNodeParameter('companyBulkType', i, 'simple') as string;
+
+							let bulkCompanies: IDataObject[] = [];
 
 							if (bulkType === 'simple') {
 								const companiesList = this.getNodeParameter('companiesList', i, {}) as IDataObject;
@@ -2945,9 +2969,7 @@ export class Lusha implements INodeType {
 									});
 								}
 
-								requestOptions.body = {
-									companies,
-								};
+								bulkCompanies = companies;
 							} else {
 								// Advanced JSON mode
 								const payloadRaw = this.getNodeParameter(
@@ -2963,8 +2985,39 @@ export class Lusha implements INodeType {
 									throw new Error('Companies Payload (JSON) must be valid JSON.');
 								}
 
-								requestOptions.body = payload;
+								bulkCompanies = (payload.companies as IDataObject[]) ?? [];
 							}
+
+							if (!bulkCompanies.length) throw new Error('No companies provided for bulk enrichment.');
+
+							// Step 1: resolve raw identifiers (domains, names) to Lusha company IDs
+							const bulkCompanySearchResponse = (await this.helpers.httpRequestWithAuthentication.call(this, 'lushaApi', {
+								baseURL: 'https://api.lusha.com',
+								url: '/v3/companies/search',
+								method: 'POST',
+								headers: {
+									Accept: 'application/json',
+									'Content-Type': 'application/json',
+									prtnr: 'n8n_connector-prod',
+								},
+								body: { companies: bulkCompanies },
+								json: true,
+							})) as any;
+
+							const bulkCompanySearchResults: any[] = bulkCompanySearchResponse.results ?? bulkCompanySearchResponse.data ?? [];
+							const bulkCompanyIds = bulkCompanySearchResults
+								.map((item: any) => item.id || item.companyId)
+								.filter(Boolean);
+
+							if (!bulkCompanyIds.length) throw new Error('No companies matched during search; nothing to enrich.');
+
+							// Step 2: enrich the resolved IDs
+							requestOptions.url = '/v3/companies/enrich';
+							requestOptions.method = 'POST';
+							if (!requestOptions.headers) requestOptions.headers = {};
+							requestOptions.headers['Content-Type'] = 'application/json';
+							delete requestOptions.qs;
+							requestOptions.body = { ids: bulkCompanyIds };
 							break;
 						}
 					case 'searchAndEnrich': {
