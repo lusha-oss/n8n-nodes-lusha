@@ -145,6 +145,33 @@ test('contact: prospecting nests every filter correctly', async () => {
 	assert.ok(!('signals' in req.body), 'signals must not sit at the top level');
 });
 
+test('contact: existingDataPoints and its match condition', async () => {
+	// The condition is only meaningful with more than one data point, so it must not
+	// be sent for a single selection.
+	const [single] = await run({
+		resource: 'contact', operation: 'prospectingContacts',
+		departments: ['Sales'],
+		contactSearchFilters: { existingDataPoints: ['work_email'], existingDataPointsCondition: 'and' },
+		searchAdditionalOptions: { page: 0, pageSize: 25 },
+	});
+	const singleInclude = single.body.filters.contacts.include;
+	assert.deepEqual(singleInclude.existingDataPoints, ['work_email']);
+	assert.ok(
+		!('existingDataPointsCondition' in singleInclude),
+		'condition is pointless with one data point and must be omitted',
+	);
+
+	const [multi] = await run({
+		resource: 'contact', operation: 'prospectingContacts',
+		departments: ['Sales'],
+		contactSearchFilters: { existingDataPoints: ['work_email', 'phone'], existingDataPointsCondition: 'and' },
+		searchAdditionalOptions: { page: 0, pageSize: 25 },
+	});
+	const multiInclude = multi.body.filters.contacts.include;
+	assert.deepEqual(multiInclude.existingDataPoints, ['work_email', 'phone']);
+	assert.equal(multiInclude.existingDataPointsCondition, 'and');
+});
+
 test('contact: page size is clamped into the API range of 10-100', async () => {
 	const [tooSmall] = await run({
 		resource: 'contact', operation: 'prospectingContacts',

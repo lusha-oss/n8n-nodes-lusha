@@ -176,6 +176,22 @@ const CASES = [
 			? null : `options not forwarded: ${JSON.stringify(body.options)}`),
 	}],
 
+	['contact/existingDataPoints + condition', {
+		resource: 'contact', operation: 'prospectingContacts',
+		departments: ['Sales'],
+		contactSearchFilters: { existingDataPoints: ['work_email', 'phone'], existingDataPointsCondition: 'and' },
+		searchAdditionalOptions: { page: 0, pageSize: 25 },
+	}, {
+		expectUrl: '/v3/contacts/prospecting',
+		check: (body) => {
+			const inc = body.filters.contacts.include;
+			if (inc.existingDataPointsCondition !== 'and') return 'existingDataPointsCondition not forwarded';
+			// work_phone is NOT a real value despite appearing in the OpenAPI example.
+			if (inc.existingDataPoints.includes('work_phone')) return 'work_phone is not a valid data point';
+			return null;
+		},
+	}],
+
 	['contact/enrichFromSearch reveal=emails', {
 		resource: 'contact', operation: 'enrichFromSearch',
 		contactSelectionType: 'specific',
