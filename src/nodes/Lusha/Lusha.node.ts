@@ -1,6 +1,8 @@
 import {
 	IExecuteFunctions,
+	ILoadOptionsFunctions,
 	INodeExecutionData,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 	IHttpRequestOptions,
@@ -13,7 +15,46 @@ import {
 	getSubIndustryOptions,
 	getContactCountryOptions,
 	getCompanyCountryOptions,
+	getDepartmentOptions,
+	getSeniorityOptions,
 } from './helpers/options';
+
+/**
+ * Fetches one of Lusha's filter-discovery endpoints for a loadOptions dropdown.
+ * Returns null on any failure — a missing credential or an unreachable catalog must
+ * degrade to the generated static list rather than leaving the editor with an empty
+ * dropdown and an error toast.
+ */
+async function fetchCatalog(ctx: ILoadOptionsFunctions, url: string): Promise<IDataObject[] | null> {
+	try {
+		const res = (await ctx.helpers.httpRequestWithAuthentication.call(ctx, 'lushaApi', {
+			baseURL: 'https://api.lusha.com',
+			url,
+			method: 'GET',
+			headers: { Accept: 'application/json', prtnr: 'n8n_connector-prod' },
+			json: true,
+		})) as IDataObject;
+		const rows = Array.isArray(res)
+			? res
+			: ((res?.values ?? res?.data ?? res?.results) as IDataObject[] | undefined);
+		return Array.isArray(rows) && rows.length ? rows : null;
+	} catch (e) {
+		return null;
+	}
+}
+
+/** Our own casing for the seniority IDs, since the catalog returns lowercase names. */
+const SENIORITY_LABELS: Record<string, string> = Object.fromEntries(
+	getSeniorityOptions().map((o) => [String(o.value), String(o.name)]),
+);
+
+/** Fallback prettifier for a catalog label we do not already have casing for. */
+function titleCaseLabel(raw: string): string {
+	return raw
+		.split(/([\s-])/)
+		.map((part) => (/^[\s-]$/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+		.join('');
+}
 
 /** V3PaginationRequest.size accepts 10–100 (default 25). */
 function clampPageSize(size: number): number {
@@ -369,24 +410,7 @@ export class Lusha implements INodeType {
 				displayName: 'Departments',
 				name: 'departments',
 				type: 'multiOptions',
-				options: [
-					{ name: 'Business Development', value: 'Business Development' },
-					{ name: 'Consulting', value: 'Consulting' },
-					{ name: 'Customer Service', value: 'Customer Service' },
-					{ name: 'Engineering & Technical', value: 'Engineering & Technical' },
-					{ name: 'Finance', value: 'Finance' },
-					{ name: 'General Management', value: 'General Management' },
-					{ name: 'Health Care & Medical', value: 'Health Care & Medical' },
-					{ name: 'Human Resources', value: 'Human Resources' },
-					{ name: 'Information Technology', value: 'Information Technology' },
-					{ name: 'Legal', value: 'Legal' },
-					{ name: 'Marketing', value: 'Marketing' },
-					{ name: 'Operations', value: 'Operations' },
-					{ name: 'Other', value: 'Other' },
-					{ name: 'Product', value: 'Product' },
-					{ name: 'Research & Analytics', value: 'Research & Analytics' },
-					{ name: 'Sales', value: 'Sales' },
-				],
+				typeOptions: { loadOptionsMethod: 'getDepartments' },
 				default: [],
 				displayOptions: {
 					show: {
@@ -399,18 +423,7 @@ export class Lusha implements INodeType {
 				displayName: 'Seniorities',
 				name: 'seniorities',
 				type: 'multiOptions',
-				options: [
-					{ name: 'Founder', value: 10 },
-					{ name: 'C-Suite', value: 9 },
-					{ name: 'Vice President', value: 8 },
-					{ name: 'Partner', value: 7 },
-					{ name: 'Director', value: 6 },
-					{ name: 'Manager', value: 5 },
-					{ name: 'Senior', value: 4 },
-					{ name: 'Entry', value: 3 },
-					{ name: 'Intern', value: 2 },
-					{ name: 'Other', value: 1 },
-				],
+				typeOptions: { loadOptionsMethod: 'getSeniorities' },
 				default: [],
 				displayOptions: {
 					show: {
@@ -423,7 +436,7 @@ export class Lusha implements INodeType {
 				displayName: 'Countries',
 				name: 'countries',
 				type: 'multiOptions',
-				options: getContactCountryOptions(),
+				typeOptions: { loadOptionsMethod: 'getContactCountries' },
 				default: [],
 				displayOptions: {
 					show: {
@@ -579,7 +592,7 @@ export class Lusha implements INodeType {
 				displayName: 'Company Main Industries',
 				name: 'contactSearchCompanyMainIndustries',
 				type: 'multiOptions',
-				options: getMainIndustryOptions(),
+				typeOptions: { loadOptionsMethod: 'getMainIndustries' },
 				default: [],
 				description: 'Filter by company main industries',
 			},
@@ -587,7 +600,7 @@ export class Lusha implements INodeType {
 				displayName: 'Company Sub-Industries',
 				name: 'contactSearchCompanySubIndustries',
 				type: 'multiOptions',
-				options: getSubIndustryOptions(),
+				typeOptions: { loadOptionsMethod: 'getSubIndustries' },
 				default: [],
 				description: 'Filter by company sub-industries',
 			},
@@ -595,7 +608,7 @@ export class Lusha implements INodeType {
 				displayName: 'Company Countries',
 				name: 'contactSearchCompanyCountries',
 				type: 'multiOptions',
-				options: getCompanyCountryOptions(),
+				typeOptions: { loadOptionsMethod: 'getCompanyCountries' },
 				default: [],
 				description: 'Filter contacts by company country (ISO-2 codes sent to API)',
 			},
@@ -1269,7 +1282,7 @@ export class Lusha implements INodeType {
 				displayName: 'Company Countries',
 				name: 'companyCountries',
 				type: 'multiOptions',
-				options: getCompanyCountryOptions(),
+				typeOptions: { loadOptionsMethod: 'getCompanyCountries' },
 				default: [],
 				displayOptions: {
 					show: {
@@ -1347,7 +1360,7 @@ export class Lusha implements INodeType {
 				displayName: 'Main Industry',
 				name: 'companyMainIndustryIds',
 				type: 'multiOptions',
-				options: getMainIndustryOptions(),
+				typeOptions: { loadOptionsMethod: 'getMainIndustries' },
 				default: [],
 				description: 'Filter by main industry',
 			},
@@ -1355,7 +1368,7 @@ export class Lusha implements INodeType {
 				displayName: 'Sub-Industries',
 				name: 'companySubIndustryIds',
 				type: 'multiOptions',
-				options: getSubIndustryOptions(),
+				typeOptions: { loadOptionsMethod: 'getSubIndustries' },
 				default: [],
 				description: 'Filter by sub-industries',
 			},
@@ -1550,6 +1563,36 @@ export class Lusha implements INodeType {
 					},
 				},
 			},
+			// Extra company data points. V3CompaniesEnrichRequest.reveal gates all of
+			// these behind an explicit opt-in — without it the response carries only the
+			// base firmographics, so none of this was reachable through the node before.
+			// Each selected field is charged separately per result.
+			{
+				displayName: 'Reveal Additional Data',
+				name: 'companyReveal',
+				type: 'multiOptions',
+				options: [
+					{ name: 'Competitors', value: 'competitors' },
+					{ name: 'Employees by Department', value: 'employeesByDepartment' },
+					{ name: 'Employees by Location', value: 'employeesByLocation' },
+					{ name: 'Employees by Seniority', value: 'employeesBySeniority' },
+					{ name: 'Estimated Annual IT Spend', value: 'estimatedAnnualItSpend' },
+					{ name: 'Intent Topics', value: 'intent' },
+					{ name: 'Monthly Website Traffic', value: 'monthlyWebsiteTraffic' },
+					{ name: 'Open Jobs — by Department', value: 'openJobsByDepartment' },
+					{ name: 'Open Jobs — by Location', value: 'openJobsByLocation' },
+					{ name: 'Open Jobs — by Seniority', value: 'openJobsBySeniority' },
+					{ name: 'Open Jobs — Total', value: 'openJobsTotal' },
+				],
+				default: [],
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['enrichBulk', 'enrichFromSearch'],
+					},
+				},
+				description: 'Optional extra fields to unlock on each company. Each one is charged separately per result, so select only what you need.',
+			},
 			// Simple bulk fields for companies
 			{
 				displayName: 'Companies',
@@ -1667,6 +1710,31 @@ export class Lusha implements INodeType {
 						default: 25,
 						description: 'Number of results per page. The API accepts 10–100; values outside that range are clamped.',
 					},
+					// Prospecting request `options` block. Distinct from the search-only
+					// Options collection: these apply to the prospecting endpoints and were
+					// previously unreachable.
+					{
+						displayName: 'Include Partial Profiles',
+						name: 'includePartialProfiles',
+						type: 'boolean',
+						default: true,
+						description: 'Whether to include profiles where only partial data is available',
+					},
+					{
+						displayName: 'Exclude Do-Not-Call',
+						name: 'excludeDnc',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to exclude contacts flagged do-not-call. Contact prospecting only.',
+					},
+					{
+						displayName: 'Max Contacts Per Company',
+						name: 'maxContactsPerCompany',
+						type: 'number',
+						typeOptions: { minValue: 1, maxValue: 20 },
+						default: 0,
+						description: 'Cap how many contacts are returned per company (1–20). This is not the page size — Page Size still controls that. Leave at 0 for uncapped. Contact prospecting only.',
+					},
 					{
 						displayName: 'Search Text',
 						name: 'searchText',
@@ -1700,14 +1768,91 @@ export class Lusha implements INodeType {
 		],
 	};
 
+	// Filter vocabularies are fetched from Lusha's own discovery endpoints so they
+	// cannot go stale. Every method falls back to the generated static list when the
+	// call fails, so the editor still works without credentials or network access.
+	methods = {
+		loadOptions: {
+			async getMainIndustries(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const rows = await fetchCatalog(this, '/v3/companies/prospecting/filters/industriesLabels');
+				if (!rows) return getMainIndustryOptions();
+				return rows
+					.filter((r: IDataObject) => r.main_industry_id !== undefined)
+					.map((r: IDataObject) => ({ name: String(r.main_industry), value: String(r.main_industry_id) }));
+			},
+
+			async getSubIndustries(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const rows = await fetchCatalog(this, '/v3/companies/prospecting/filters/industriesLabels');
+				if (!rows) return getSubIndustryOptions();
+				// Flatten parent -> children, then parent-qualify any label that occurs
+				// under more than one parent (notably "Other", which repeats ~15 times).
+				const flat: Array<{ id: string; label: string; parent: string }> = [];
+				rows.forEach((m: IDataObject) => {
+					((m.sub_industries as IDataObject[]) ?? []).forEach((s) => {
+						flat.push({ id: String(s.id), label: String(s.value), parent: String(m.main_industry) });
+					});
+				});
+				const freq: Record<string, number> = {};
+				flat.forEach((s) => (freq[s.label] = (freq[s.label] ?? 0) + 1));
+				const seen = new Set<string>();
+				return flat
+					.filter((s) => (seen.has(s.id) ? false : (seen.add(s.id), true)))
+					.map((s) => ({ name: freq[s.label] > 1 ? `${s.parent}: ${s.label}` : s.label, value: s.id }));
+			},
+
+			async getContactCountries(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const rows = await fetchCatalog(this, '/v3/contacts/prospecting/filters/countries');
+				if (!rows) return getContactCountryOptions();
+				// filters.contacts.include.countries takes ISO-2 codes only.
+				return rows.map((r: IDataObject) => ({
+					name: String(r.name ?? r.code),
+					value: String(r.code ?? r.name),
+				}));
+			},
+
+			async getCompanyCountries(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const rows = await fetchCatalog(this, '/v3/contacts/prospecting/filters/countries');
+				if (!rows) return getCompanyCountryOptions();
+				// V3Location.country takes the full country name, never the ISO-2 code.
+				return rows.map((r: IDataObject) => {
+					const name = String(r.name ?? r.code);
+					return { name, value: name };
+				});
+			},
+
+			async getDepartments(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const rows = await fetchCatalog(this, '/v3/contacts/prospecting/filters/departments');
+				if (!rows) return getDepartmentOptions();
+				return rows.map((r: unknown) => {
+					const v = typeof r === 'string' ? r : String((r as IDataObject).value ?? (r as IDataObject).name);
+					return { name: v, value: v };
+				});
+			},
+
+			async getSeniorities(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const rows = await fetchCatalog(this, '/v3/contacts/prospecting/filters/seniority');
+				if (!rows) return getSeniorityOptions();
+				// seniorityIds must be integers. The catalog returns lowercase names, so
+				// prefer our own casing for known IDs and title-case anything new.
+				return rows.map((r: IDataObject) => ({
+					name: SENIORITY_LABELS[String(r.id)] ?? titleCaseLabel(String(r.name ?? r.id)),
+					value: Number(r.id),
+				}));
+			},
+		},
+	};
+
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
-		const resource = this.getNodeParameter('resource', 0) as string;
-		const operation = this.getNodeParameter('operation', 0) as string;
 
 		for (let i = 0; i < items.length; i++) {
 			try {
+				// Read per item, not once at index 0: Resource and Operation can be driven
+				// by expressions, and hoisting them applied item 0's choice to every item.
+				const resource = this.getNodeParameter('resource', i) as string;
+				const operation = this.getNodeParameter('operation', i) as string;
+
 				// Populated by the two-step bulk-enrich flow so the caller can see how
 				// many identifiers actually resolved and which ones did not.
 				let bulkEnrichContext: IDataObject | undefined;
@@ -2063,6 +2208,28 @@ export class Lusha implements INodeType {
 									'Prospect Contacts: set at least one filter (job title, department, seniority, country, or a company filter) before running.',
 									{ itemIndex: i },
 								);
+							}
+
+							// V3ProspectingContactsRequest.options.
+							// Read the collection as a whole rather than via dotted paths:
+							// getNodeParameter throws "Could not get parameter" for a key the
+							// user has not added to a collection unless a concrete fallback is
+							// supplied, and `undefined` does not count as one.
+							const prospectOptions = this.getNodeParameter('searchAdditionalOptions', i, {}) as IDataObject;
+							const contactProspectOptions: IDataObject = {};
+							if (prospectOptions.includePartialProfiles !== undefined) {
+								contactProspectOptions.includePartialProfiles = prospectOptions.includePartialProfiles as boolean;
+							}
+							if (prospectOptions.excludeDnc !== undefined) {
+								contactProspectOptions.excludeDnc = prospectOptions.excludeDnc as boolean;
+							}
+							// 0 means uncapped; the API accepts 1-20 only, so omit it otherwise.
+							const cpMaxPerCompany = Number(prospectOptions.maxContactsPerCompany ?? 0);
+							if (Number.isFinite(cpMaxPerCompany) && cpMaxPerCompany >= 1) {
+								contactProspectOptions.maxContactsPerCompany = Math.min(20, Math.floor(cpMaxPerCompany));
+							}
+							if (Object.keys(contactProspectOptions).length) {
+								contactSearchBody.options = contactProspectOptions;
 							}
 
 							requestOptions.body = contactSearchBody;
@@ -2602,6 +2769,16 @@ export class Lusha implements INodeType {
 								);
 							}
 
+							// V3ProspectingCompaniesRequest.options accepts only
+							// includePartialProfiles — excludeDnc and maxContactsPerCompany
+							// are contact-side fields and are deliberately not forwarded.
+							const companyProspectOptions = this.getNodeParameter('searchAdditionalOptions', i, {}) as IDataObject;
+							if (companyProspectOptions.includePartialProfiles !== undefined) {
+								companySearchBody.options = {
+									includePartialProfiles: companyProspectOptions.includePartialProfiles as boolean,
+								};
+							}
+
 							requestOptions.body = companySearchBody;
 							break;
 						}
@@ -2644,7 +2821,11 @@ export class Lusha implements INodeType {
 							delete requestOptions.qs;
 
 							// V3CompaniesEnrichRequest.ids: strings, max 100.
-							requestOptions.body = { ids: companiesIds.map((id) => String(id)).slice(0, 100) };
+							const efsCompanyReveal = this.getNodeParameter('companyReveal', i, []) as string[];
+							requestOptions.body = {
+								ids: companiesIds.map((id) => String(id)).slice(0, 100),
+								...(efsCompanyReveal.length ? { reveal: efsCompanyReveal } : {}),
+							};
 							break;
 						}
 
@@ -2762,7 +2943,11 @@ export class Lusha implements INodeType {
 							if (!requestOptions.headers) requestOptions.headers = {};
 							requestOptions.headers['Content-Type'] = 'application/json';
 							delete requestOptions.qs;
-							requestOptions.body = { ids: bulkCompanyMatched.map((m) => m.id as string) };
+							const bulkCompanyReveal = this.getNodeParameter('companyReveal', i, []) as string[];
+							requestOptions.body = {
+								ids: bulkCompanyMatched.map((m) => m.id as string),
+								...(bulkCompanyReveal.length ? { reveal: bulkCompanyReveal } : {}),
+							};
 							break;
 						}
 					case 'searchAndEnrich': {

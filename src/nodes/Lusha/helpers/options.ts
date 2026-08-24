@@ -1,59 +1,13 @@
 import { INodePropertyOptions } from 'n8n-workflow';
 
+/**
+ * @deprecated Country values are not interchangeable between contact and company
+ * filters: contact criteria take ISO-2 codes, company locations take full names.
+ * Use getContactCountryOptions() or getCompanyCountryOptions() instead. Retained
+ * because it is re-exported from the package entrypoint.
+ */
 export function getCountryOptions(): INodePropertyOptions[] {
-	return [
-		{ name: 'United States', value: 'United States' },
-		{ name: 'India', value: 'India' },
-		{ name: 'United Kingdom', value: 'United Kingdom' },
-		{ name: 'Brazil', value: 'Brazil' },
-		{ name: 'Canada', value: 'Canada' },
-		{ name: 'Australia', value: 'Australia' },
-		{ name: 'France', value: 'France' },
-		{ name: 'Germany', value: 'Germany' },
-		{ name: 'Netherlands', value: 'Netherlands' },
-		{ name: 'Italy', value: 'Italy' },
-		{ name: 'South Africa', value: 'South Africa' },
-		{ name: 'Mexico', value: 'Mexico' },
-		{ name: 'Turkey', value: 'Turkey' },
-		{ name: 'Sweden', value: 'Sweden' },
-		{ name: 'China', value: 'China' },
-		{ name: 'Indonesia', value: 'Indonesia' },
-		{ name: 'Belgium', value: 'Belgium' },
-		{ name: 'Spain', value: 'Spain' },
-		{ name: 'United Arab Emirates', value: 'United Arab Emirates' },
-		{ name: 'Argentina', value: 'Argentina' },
-		{ name: 'Switzerland', value: 'Switzerland' },
-		{ name: 'Singapore', value: 'Singapore' },
-		{ name: 'Saudi Arabia', value: 'Saudi Arabia' },
-		{ name: 'Ireland', value: 'Ireland' },
-		{ name: 'Colombia', value: 'Colombia' },
-		{ name: 'Chile', value: 'Chile' },
-		{ name: 'Malaysia', value: 'Malaysia' },
-		{ name: 'Egypt', value: 'Egypt' },
-		{ name: 'Nigeria', value: 'Nigeria' },
-		{ name: 'Japan', value: 'Japan' },
-		{ name: 'Hong Kong', value: 'Hong Kong' },
-		{ name: 'Finland', value: 'Finland' },
-		{ name: 'Denmark', value: 'Denmark' },
-		{ name: 'Taiwan', value: 'Taiwan' },
-		{ name: 'Bangladesh', value: 'Bangladesh' },
-		{ name: 'Austria', value: 'Austria' },
-		{ name: 'Czech Republic', value: 'Czech Republic' },
-		{ name: 'Peru', value: 'Peru' },
-		{ name: 'Kenya', value: 'Kenya' },
-		{ name: 'Vietnam', value: 'Vietnam' },
-		{ name: 'Poland', value: 'Poland' },
-		{ name: 'Ukraine', value: 'Ukraine' },
-		{ name: 'Thailand', value: 'Thailand' },
-		{ name: 'South Korea', value: 'South Korea' },
-		{ name: 'Iran', value: 'Iran' },
-		{ name: 'Morocco', value: 'Morocco' },
-		{ name: 'Venezuela', value: 'Venezuela' },
-		{ name: 'Hungary', value: 'Hungary' },
-		{ name: 'Sri Lanka', value: 'Sri Lanka' },
-		{ name: 'New Zealand', value: 'New Zealand' },
-		{ name: 'Portugal', value: 'Portugal' },
-	];
+	return getCompanyCountryOptions();
 }
 
 export function getDepartmentOptions(): INodePropertyOptions[] {
@@ -77,18 +31,23 @@ export function getDepartmentOptions(): INodePropertyOptions[] {
 	];
 }
 
+/**
+ * Contact seniority IDs, verified against GET /v3/contacts/prospecting/filters/seniority.
+ * filters.contacts.include.seniorityIds is an array of INTEGERS — these were
+ * previously strings here, which did not match what the node sends.
+ */
 export function getSeniorityOptions(): INodePropertyOptions[] {
 	return [
-		{ name: 'Founder', value: '10' },
-		{ name: 'Partner', value: '7' },
-		{ name: 'C-Suite', value: '9' },
-		{ name: 'Vice President', value: '8' },
-		{ name: 'Director', value: '6' },
-		{ name: 'Manager', value: '5' },
-		{ name: 'Senior', value: '4' },
-		{ name: 'Entry', value: '3' },
-		{ name: 'Intern', value: '2' },
-		{ name: 'Other', value: '1' },
+		{ name: 'Founder', value: 10 },
+		{ name: 'C-Suite', value: 9 },
+		{ name: 'Vice President', value: 8 },
+		{ name: 'Partner', value: 7 },
+		{ name: 'Director', value: 6 },
+		{ name: 'Manager', value: 5 },
+		{ name: 'Senior', value: 4 },
+		{ name: 'Entry', value: 3 },
+		{ name: 'Intern', value: 2 },
+		{ name: 'Other', value: 1 },
 	];
 }
 
