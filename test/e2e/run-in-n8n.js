@@ -231,6 +231,136 @@ const CASES = [
 		},
 	}],
 
+	// The case above covers the interesting shapes. This one sets every remaining
+	// advanced filter at once, so no field reaches a release having only ever been
+	// built by the unit stub -- real n8n resolves collection parameters itself.
+	['contact/advanced filters (every remaining field)', {
+		resource: 'contact', operation: 'prospectingContacts',
+		departments: ['Sales'],
+		contactAdvancedFilters: {
+			contactNames: 'Jane Doe',
+			// A list of titles to match exactly -- not a boolean toggle on `jobTitles`.
+			jobTitlesExactMatch: 'VP Sales, Head of Sales',
+			normalizedJobTitles: 'sales_manager',
+			contactLinkedinUrls: 'https://www.linkedin.com/in/janedoe',
+			contactEmails: 'jane@acme.com',
+			contactPreviousEmails: 'jane@old.com',
+			previousJobTitle: 'Account Executive',
+			certifications: 'AWS Certified',
+			awards: 'Top Performer',
+			jobChangedLastViewDate: '2025-02-01',
+			educationFieldsOfStudy: 'Computer Science',
+			educationSchools: 'MIT',
+			educationGraduationYearLte: 2012,
+		},
+		companyAdvancedFilters: {
+			industriesLabels: 'Software',
+			companyLinkedinUrls: 'https://www.linkedin.com/company/acme',
+			exactKeywords: 'fintech',
+			keywordsSearchFields: ['description'],
+			specialities: 'payments',
+			exactSpecialities: 'payments',
+			previousCompanyDomains: 'old.com',
+			previousCompanyNames: 'Old Corp',
+			technologiesCondition: 'and',
+			intentTopicsCondition: 'and',
+			intentMinScore: 20,
+			intentMaxScore: 80,
+			topicCountMin: 2,
+			topicCountMax: 8,
+			fundingInvestors: 'Sequoia, Accel',
+			fundingDateCoverage: 'last_funding',
+			fundingDate: '2025-01-01',
+		},
+		searchAdditionalOptions: { page: 0, pageSize: 25 },
+	}, {
+		expectUrl: '/v3/contacts/prospecting',
+		check: (body) => {
+			const c = body.filters.contacts.include;
+			const k = body.filters.companies.include;
+			if (c.education.graduationYearLte !== 2012) return 'education.graduationYearLte lost';
+			if (!Array.isArray(c.emails) || c.emails[0] !== 'jane@acme.com') return 'contact emails lost';
+			if (JSON.stringify(c.jobTitlesExactMatch) !== '["VP Sales","Head of Sales"]') {
+				return `jobTitlesExactMatch must be a string array, got ${JSON.stringify(c.jobTitlesExactMatch)}`;
+			}
+			if (JSON.stringify(k.topicCountThreshold) !== '[{"min":2,"max":8}]') return 'topicCountThreshold must merge into one element';
+			if (JSON.stringify(k.funding.investors) !== '["Sequoia","Accel"]') return 'funding.investors lost';
+			if (!k.funding.date || k.funding.date.coverage !== 'last_funding') return 'funding.date must nest coverage with the date';
+			if (k.intentMinScore !== 20 || k.intentMaxScore !== 80) return 'intent score bounds lost';
+			return null;
+		},
+	}],
+
+	// prospectingCompanies builds its filters in a block of its own, so passing on the
+	// contact side proves nothing about this one. Also the only n8n coverage of the
+	// funding-amount/name rows and the two company zipcode row types.
+	['company/prospecting advanced filters + funding rows', {
+		resource: 'company', operation: 'prospectingCompanies',
+		searchCompanyDomains: 'acme.com',
+		companyAdvancedFilters: {
+			keywords: 'fintech, cloud',
+			businessModel: ['B2B'],
+			companyType: ['Public Company'],
+			foundedYearMin: 2000, foundedYearMax: 2020,
+			fundingIsIpo: true,
+			fundingInvestors: 'Sequoia',
+			intentMinScore: 20,
+		},
+		companyFundingRanges: { range: [{ coverage: 'total_funds', min: 1000000, max: 50000000 }] },
+		companyFundingRounds: { round: [{ coverage: 'last_round', round: 'series_b' }] },
+		companyFundingNames: { type: [{ coverage: 'any_round', name: 'venture' }] },
+		companyGeographicDetails: { area: [{ country: 'United States', zipcode: '10001', distance: 25 }] },
+		companyLocationsZipcodes: { location: [{ countryIso2: 'US', zipcode: '94105' }] },
+		companyHeadquarterZipcodes: { location: [{ countryIso2: 'US', zipcode: '10001' }] },
+		tableId: '482910',
+		searchAdditionalOptions: { page: 0, pageSize: 25 },
+	}, {
+		expectUrl: '/v3/companies/prospecting',
+		check: (body) => {
+			const k = body.filters.companies.include;
+			if (JSON.stringify(k.foundedYear) !== '[{"min":2000,"max":2020}]') return 'foundedYear must merge into one element';
+			const f = k.funding || {};
+			for (const part of ['isIpo', 'investors', 'ranges', 'rounds', 'names']) {
+				if (!(part in f)) return `funding.${part} missing -- all five must merge into ONE funding object`;
+			}
+			if (f.ranges[0].max !== 50000000) return 'funding.ranges bounds lost';
+			if (f.names[0].name !== 'venture') return 'funding.names lost';
+			if (!Array.isArray(k.geographicDetails) || k.geographicDetails[0].distance !== 25) return 'company geographicDetails lost';
+			if (!Array.isArray(k.locationsZipcodes) || !Array.isArray(k.headquarterZipcodes)) return 'both zipcode row types must be sent';
+			if (k.locationsZipcodes[0].zipcode === k.headquarterZipcodes[0].zipcode) return 'zipcode row types crossed over';
+			if (body.tableId !== '482910') return `a set tableId must be forwarded, got ${body.tableId}`;
+			return null;
+		},
+	}],
+
+	['contact/enrichFromSearch waterfall opt-out + tableId', {
+		resource: 'contact', operation: 'enrichFromSearch',
+		contactSelectionType: 'specific',
+		contactIds: '4389064654',
+		enrichFromSearchReveal: ['emails'],
+		waterfallEnabled: false,
+		tableId: '482910',
+	}, {
+		expectUrl: '/v3/contacts/enrich',
+		check: (body) => {
+			if (body.waterfallEnabled !== false) return 'an explicit waterfall opt-out must be forwarded';
+			if (body.tableId !== '482910') return 'tableId must be forwarded on enrich';
+			return null;
+		},
+	}],
+
+	['contact/enrichFromSearch waterfall default stays implicit', {
+		resource: 'contact', operation: 'enrichFromSearch',
+		contactSelectionType: 'specific',
+		contactIds: '4389064654',
+		enrichFromSearchReveal: ['emails'],
+		waterfallEnabled: true,
+	}, {
+		expectUrl: '/v3/contacts/enrich',
+		// True is the server default, so sending it would be noise.
+		check: (body) => ('waterfallEnabled' in body ? 'the default must not be sent explicitly' : null),
+	}],
+
 	['contact/enrichFromSearch reveal=emails', {
 		resource: 'contact', operation: 'enrichFromSearch',
 		contactSelectionType: 'specific',
