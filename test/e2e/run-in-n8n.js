@@ -294,21 +294,25 @@ const CASES = [
 	// prospectingCompanies builds its filters in a block of its own, so passing on the
 	// contact side proves nothing about this one. Also the only n8n coverage of the
 	// funding-amount/name rows and the two company zipcode row types.
-	['company/prospecting advanced filters + funding rows', {
+	// The company-side filters that companies/prospecting DOES accept. funding and
+	// industriesLabels are absent from its request schema, so they are neither
+	// offered nor sent here -- see the contact case above for their coverage.
+	['company/prospecting advanced filters + zipcode rows', {
 		resource: 'company', operation: 'prospectingCompanies',
 		searchCompanyDomains: 'acme.com',
 		companyAdvancedFilters: {
 			keywords: 'fintech, cloud',
+			exactKeywords: 'fintech',
 			businessModel: ['B2B'],
 			companyType: ['Public Company'],
 			foundedYearMin: 2000, foundedYearMax: 2020,
-			fundingIsIpo: true,
-			fundingInvestors: 'Sequoia',
-			intentMinScore: 20,
+			intentMinScore: 20, intentMaxScore: 80,
+			topicCountMin: 2, topicCountMax: 8,
+			technologiesCondition: 'and',
+			previousCompanyDomains: 'old.com',
+			specialities: 'payments',
+			companyLinkedinUrls: 'https://www.linkedin.com/company/acme',
 		},
-		companyFundingRanges: { range: [{ coverage: 'total_funds', min: 1000000, max: 50000000 }] },
-		companyFundingRounds: { round: [{ coverage: 'last_round', round: 'series_b' }] },
-		companyFundingNames: { type: [{ coverage: 'any_round', name: 'venture' }] },
 		companyGeographicDetails: { area: [{ country: 'United States', zipcode: '10001', distance: 25 }] },
 		companyLocationsZipcodes: { location: [{ countryIso2: 'US', zipcode: '94105' }] },
 		companyHeadquarterZipcodes: { location: [{ countryIso2: 'US', zipcode: '10001' }] },
@@ -319,16 +323,63 @@ const CASES = [
 		check: (body) => {
 			const k = body.filters.companies.include;
 			if (JSON.stringify(k.foundedYear) !== '[{"min":2000,"max":2020}]') return 'foundedYear must merge into one element';
-			const f = k.funding || {};
-			for (const part of ['isIpo', 'investors', 'ranges', 'rounds', 'names']) {
-				if (!(part in f)) return `funding.${part} missing -- all five must merge into ONE funding object`;
-			}
-			if (f.ranges[0].max !== 50000000) return 'funding.ranges bounds lost';
-			if (f.names[0].name !== 'venture') return 'funding.names lost';
+			if (JSON.stringify(k.topicCountThreshold) !== '[{"min":2,"max":8}]') return 'topicCountThreshold must merge into one element';
 			if (!Array.isArray(k.geographicDetails) || k.geographicDetails[0].distance !== 25) return 'company geographicDetails lost';
 			if (!Array.isArray(k.locationsZipcodes) || !Array.isArray(k.headquarterZipcodes)) return 'both zipcode row types must be sent';
 			if (k.locationsZipcodes[0].zipcode === k.headquarterZipcodes[0].zipcode) return 'zipcode row types crossed over';
 			if (body.tableId !== '482910') return `a set tableId must be forwarded, got ${body.tableId}`;
+			return null;
+		},
+	}],
+
+	// A workflow saved before the endpoints were told apart can still carry funding
+	// and industriesLabels values; the builder must drop them rather than 400.
+	// Search Text and the signal fields are offered on this action and were being
+	// collected and discarded. companies/prospecting takes both under
+	// filters.companies.include.
+	['company/prospecting searchText + signals', {
+		resource: 'company', operation: 'prospectingCompanies',
+		searchCompanyDomains: 'acme.com',
+		searchAdditionalOptions: {
+			page: 0, pageSize: 25,
+			searchText: 'sales automation',
+			signalNames: ['headcountIncrease3m'],
+			signalStartDate: '2025-01-01',
+		},
+	}, {
+		expectUrl: '/v3/companies/prospecting',
+		check: (body) => {
+			const k = body.filters.companies.include;
+			if (k.searchText !== 'sales automation') return `searchText dropped, got ${k.searchText}`;
+			if (!k.signals || k.signals.types[0] !== 'headcountIncrease3m') return 'signals dropped';
+			if (k.signals.startDate !== '2025-01-01') return 'signal startDate dropped';
+			if ('searchText' in body) return 'searchText must not also sit at the top level';
+			return null;
+		},
+	}],
+
+	['company/prospecting drops contacts-only company filters', {
+		resource: 'company', operation: 'prospectingCompanies',
+		searchCompanyDomains: 'acme.com',
+		companyAdvancedFilters: {
+			keywords: 'fintech',
+			industriesLabels: 'Software',
+			fundingIsIpo: true,
+			fundingInvestors: 'Sequoia',
+			fundingDateCoverage: 'last_funding',
+			fundingDate: '2025-01-01',
+		},
+		companyFundingRanges: { range: [{ coverage: 'total_funds', min: 1000000 }] },
+		companyFundingRounds: { round: [{ coverage: 'last_round', round: 'seed' }] },
+		companyFundingNames: { type: [{ coverage: 'any_round', name: 'venture' }] },
+		searchAdditionalOptions: { page: 0, pageSize: 25 },
+	}, {
+		expectUrl: '/v3/companies/prospecting',
+		check: (body) => {
+			const k = body.filters.companies.include;
+			if (!('keywords' in k)) return 'a shared filter must still be sent';
+			if ('funding' in k) return 'funding is not accepted by companies/prospecting';
+			if ('industriesLabels' in k) return 'industriesLabels is not accepted by companies/prospecting';
 			return null;
 		},
 	}],
@@ -598,6 +649,12 @@ const CASES = [
 		for (const r of requests) {
 			if (r.apiKeyHeader !== 'e2e-mock-key') problems.push(`missing api_key on ${r.url}`);
 			if (r.prtnr !== 'n8n_connector-prod') problems.push(`missing prtnr on ${r.url}`);
+			// The stand-in validates against the published request schemas, so an
+			// unknown or mistyped field fails here rather than in production.
+			if (r.method === 'POST' && !r.schemaChecked) {
+				problems.push(`${r.url} was not schema-checked -- no schema is bundled for it`);
+			}
+			for (const v of r.violations || []) problems.push(`${r.url} rejected: ${v}`);
 		}
 		if (opts.check) {
 			const problem = opts.check(final.body);

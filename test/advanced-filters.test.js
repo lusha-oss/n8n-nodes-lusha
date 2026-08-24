@@ -103,7 +103,7 @@ test('a range with only one bound set still produces one element', async () => {
 });
 
 test('funding sub-filters nest under a single funding object', async () => {
-	const body = await prospectCompanies({
+	const body = await prospectContacts({
 		companyAdvancedFilters: {
 			fundingIsIpo: true,
 			fundingDateCoverage: 'last_funding',
@@ -117,7 +117,7 @@ test('funding sub-filters nest under a single funding object', async () => {
 });
 
 test('funding rows build arrays of coverage-scoped objects', async () => {
-	const body = await prospectCompanies({
+	const body = await prospectContacts({
 		companyFundingRanges: { range: [{ coverage: 'total_funds', min: 1000000, max: 50000000 }] },
 		companyFundingRounds: { round: [{ coverage: 'last_round', round: 'series_b' }] },
 		companyFundingNames: { type: [{ coverage: 'any_round', name: 'venture' }] },
@@ -134,7 +134,7 @@ test('funding rows build arrays of coverage-scoped objects', async () => {
 });
 
 test('a funding amount row with a zero bound drops just that bound', async () => {
-	const body = await prospectCompanies({
+	const body = await prospectContacts({
 		companyFundingRanges: { range: [{ coverage: 'total_funds', min: 1000000, max: 0 }] },
 	});
 	assert.deepEqual(body.filters.companies.include.funding.ranges, [
@@ -144,11 +144,13 @@ test('a funding amount row with a zero bound drops just that bound', async () =>
 
 test('a funding row carrying only a coverage is not sent', async () => {
 	// Coverage alone selects a window without filtering anything in it.
-	const body = await prospectCompanies({
+	const body = await prospectContacts({
 		companyFundingRanges: { range: [{ coverage: 'total_funds', min: 0, max: 0 }] },
 		companyFundingRounds: { round: [{ coverage: 'last_round', round: '' }] },
 	});
-	const k = body.filters.companies.include;
+	// With nothing else set on the company side, the block is pruned rather than
+	// sent as an empty `include: {}`.
+	const k = body.filters.companies?.include ?? {};
 	assert.ok(!('funding' in k), 'coverage-only rows should produce no funding filter');
 });
 
@@ -273,4 +275,45 @@ test('the UI offers exactly the fields the builder knows how to send', () => {
 	for (const f of ['funding', 'foundedYear', 'businessModel', 'companyType', 'keywords', 'locationsZipcodes']) {
 		assert.ok(targets.company.includes(f), `company target ${f} missing`);
 	}
+});
+
+test('company filters are scoped to the endpoint that accepts them', async () => {
+	// The two prospecting endpoints nest company filters identically but do not
+	// accept the same set: funding and industriesLabels are contacts/prospecting
+	// only. Sending them to companies/prospecting is a 400, so they must be
+	// dropped even if a saved workflow still carries the values.
+	const onCompanies = await prospectCompanies({
+		companyAdvancedFilters: {
+			keywords: 'fintech',
+			industriesLabels: 'Software',
+			fundingIsIpo: true,
+			fundingInvestors: 'Sequoia',
+		},
+		companyFundingRanges: { range: [{ coverage: 'total_funds', min: 1000000 }] },
+		companyFundingRounds: { round: [{ coverage: 'last_round', round: 'seed' }] },
+	});
+	const k = onCompanies.filters.companies.include;
+	assert.deepEqual(k.keywords, ['fintech'], 'a shared filter must still be sent');
+	assert.ok(!('funding' in k), 'funding is not accepted by companies/prospecting');
+	assert.ok(!('industriesLabels' in k), 'industriesLabels is not accepted by companies/prospecting');
+
+	// The same values on the contact endpoint, where they are documented.
+	const onContacts = await prospectContacts({
+		companyAdvancedFilters: { industriesLabels: 'Software', fundingIsIpo: true },
+	});
+	const c = onContacts.filters.companies.include;
+	assert.deepEqual(c.industriesLabels, ['Software']);
+	assert.deepEqual(c.funding, { isIpo: true });
+});
+
+test('the panel offers each endpoint only the filters it accepts', () => {
+	const onContacts = companyAdvancedFilterOptions('contactsProspecting').map((o) => o.name);
+	const onCompanies = companyAdvancedFilterOptions('companiesProspecting').map((o) => o.name);
+	for (const name of ['fundingIsIpo', 'fundingInvestors', 'fundingDate', 'fundingDateCoverage', 'industriesLabels']) {
+		assert.ok(onContacts.includes(name), `${name} should be offered on Prospect Contacts`);
+		assert.ok(!onCompanies.includes(name), `${name} must not be offered on Prospect Companies`);
+	}
+	// Everything else stays available on both.
+	assert.ok(onCompanies.includes('keywords') && onContacts.includes('keywords'));
+	assert.equal(onCompanies.length, onContacts.length - 5);
 });

@@ -2,6 +2,14 @@
 // exact request n8n's own execution engine emits, with no Lusha credits spent.
 const https = require('https');
 const fs = require('fs');
+const { validateRequest } = require('./validate-schema');
+const { checkDivergences } = require('./api-divergences');
+
+// Request schemas distilled from the published OpenAPI document; see
+// build-schemas.py. Every POST body is validated against them, so a body the
+// real API would reject with a 400 is rejected here too instead of being
+// captured as a pass.
+const SCHEMAS = JSON.parse(fs.readFileSync(`${__dirname}/schemas/lusha-v3-requests.json`, 'utf8'));
 
 const captured = [];
 
@@ -34,6 +42,15 @@ const server = https.createServer(
 				body = { __unparseable: raw };
 			}
 
+			// Validate before answering, so the driver sees the same rejection the real
+			// API would give. The path is matched exactly -- these endpoints have no
+			// path parameters.
+			const schemaPath = req.url.split('?')[0];
+			const schema = req.method === 'POST' ? SCHEMAS[schemaPath] : null;
+			const violations = schema
+				? [...validateRequest(body, schema), ...checkDivergences(body, schemaPath)]
+				: [];
+
 			captured.push({
 				method: req.method,
 				url: req.url,
@@ -42,7 +59,15 @@ const server = https.createServer(
 				prtnr: req.headers.prtnr ?? null,
 				accept: req.headers.accept ?? null,
 				body,
+				schemaChecked: Boolean(schema),
+				violations,
 			});
+
+			if (violations.length) {
+				res.writeHead(400, { 'Content-Type': 'application/json' });
+				res.end(JSON.stringify({ statusCode: 400, message: violations, error: 'Bad Request' }));
+				return;
+			}
 
 			res.writeHead(200, { 'Content-Type': 'application/json' });
 

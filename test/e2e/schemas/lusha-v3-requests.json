@@ -1,0 +1,2837 @@
+{
+ "/v3/companies/enrich": {
+  "properties": {
+   "ids": {
+    "items": {
+     "type": "string"
+    },
+    "maxItems": 100,
+    "minItems": 1,
+    "type": "array"
+   },
+   "reveal": {
+    "items": {
+     "enum": [
+      "employeesByDepartment",
+      "employeesByLocation",
+      "employeesBySeniority",
+      "competitors",
+      "intent",
+      "estimatedAnnualItSpend",
+      "monthlyWebsiteTraffic",
+      "openJobsTotal",
+      "openJobsByDepartment",
+      "openJobsByLocation",
+      "openJobsBySeniority"
+     ],
+     "type": "string"
+    },
+    "type": "array"
+   },
+   "tableId": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "ids"
+  ],
+  "type": "object"
+ },
+ "/v3/companies/lookalike": {
+  "properties": {
+   "dedupeSessionId": {
+    "format": "uuid",
+    "type": "string"
+   },
+   "exclude": {
+    "properties": {
+     "domains": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array"
+     },
+     "linkedinUrls": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "limit": {
+    "maximum": 100,
+    "minimum": 1,
+    "type": "integer"
+   },
+   "seeds": {
+    "properties": {
+     "domains": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array"
+     },
+     "linkedinUrls": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "tableId": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "seeds"
+  ],
+  "type": "object"
+ },
+ "/v3/companies/prospecting": {
+  "properties": {
+   "filters": {
+    "properties": {
+     "companies": {
+      "properties": {
+       "exclude": {
+        "properties": {
+         "businessModel": {
+          "items": {
+           "enum": [
+            "B2B",
+            "B2C",
+            "B2G"
+           ],
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "companyType": {
+          "items": {
+           "enum": [
+            "Government",
+            "Private Company",
+            "Public Company",
+            "Educational",
+            "Non Profit",
+            "Self Employed"
+           ],
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "domains": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "exactKeywords": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "exactSpecialities": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "foundedYear": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "geographicDetails": {
+          "items": {
+           "properties": {
+            "country": {
+             "type": "string"
+            },
+            "distance": {
+             "type": "integer"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "headquarterZipcodes": {
+          "items": {
+           "properties": {
+            "countryIso2": {
+             "type": "string"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "ids": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "intentMaxScore": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+         },
+         "intentMinScore": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+         },
+         "intentTopics": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "intentTopicsCondition": {
+          "enum": [
+           "or",
+           "and"
+          ],
+          "type": "string"
+         },
+         "intentTopicsOperator": {
+          "enum": [
+           "or",
+           "and",
+           "any",
+           "all"
+          ],
+          "type": "string"
+         },
+         "keywords": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "keywordsSearchFields": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "linkedinUrls": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "locations": {
+          "items": {
+           "properties": {
+            "city": {
+             "type": "string"
+            },
+            "continent": {
+             "type": "string"
+            },
+            "country": {
+             "type": "string"
+            },
+            "countryGrouping": {
+             "type": "string"
+            },
+            "countryIso2": {
+             "type": "string"
+            },
+            "region": {
+             "type": "string"
+            },
+            "state": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "locationsZipcodes": {
+          "items": {
+           "properties": {
+            "countryIso2": {
+             "type": "string"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "mainIndustriesIds": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "naicsCodes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "names": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "previousCompanyDomains": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "previousCompanyNames": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "revenues": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "minimum": 0,
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "searchText": {
+          "maxLength": 200,
+          "type": "string"
+         },
+         "sicCodes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "signals": {
+          "properties": {
+           "filterByDepartment": {
+            "items": {
+             "properties": {
+              "department": {
+               "type": "string"
+              },
+              "startDate": {
+               "format": "date",
+               "type": "string"
+              }
+             },
+             "required": [
+              "department"
+             ],
+             "type": "object"
+            },
+            "type": "array"
+           },
+           "filterByIntentCategory": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           "filterByLocation": {
+            "items": {
+             "properties": {
+              "country": {
+               "type": "string"
+              },
+              "startDate": {
+               "format": "date",
+               "type": "string"
+              },
+              "state": {
+               "type": "string"
+              }
+             },
+             "type": "object"
+            },
+            "type": "array"
+           },
+           "startDate": {
+            "format": "date",
+            "type": "string"
+           },
+           "types": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           }
+          },
+          "type": "object"
+         },
+         "sizes": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "minimum": 0,
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "specialities": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "subIndustriesIds": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "technologies": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "technologiesCondition": {
+          "enum": [
+           "or",
+           "and"
+          ],
+          "type": "string"
+         },
+         "topicCountThreshold": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "minimum": 0,
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         }
+        },
+        "type": "object"
+       },
+       "include": {
+        "properties": {
+         "businessModel": {
+          "items": {
+           "enum": [
+            "B2B",
+            "B2C",
+            "B2G"
+           ],
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "companyType": {
+          "items": {
+           "enum": [
+            "Government",
+            "Private Company",
+            "Public Company",
+            "Educational",
+            "Non Profit",
+            "Self Employed"
+           ],
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "domains": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "exactKeywords": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "exactSpecialities": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "foundedYear": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "geographicDetails": {
+          "items": {
+           "properties": {
+            "country": {
+             "type": "string"
+            },
+            "distance": {
+             "type": "integer"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "headquarterZipcodes": {
+          "items": {
+           "properties": {
+            "countryIso2": {
+             "type": "string"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "ids": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "intentMaxScore": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+         },
+         "intentMinScore": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+         },
+         "intentTopics": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "intentTopicsCondition": {
+          "enum": [
+           "or",
+           "and"
+          ],
+          "type": "string"
+         },
+         "intentTopicsOperator": {
+          "enum": [
+           "or",
+           "and",
+           "any",
+           "all"
+          ],
+          "type": "string"
+         },
+         "keywords": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "keywordsSearchFields": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "linkedinUrls": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "locations": {
+          "items": {
+           "properties": {
+            "city": {
+             "type": "string"
+            },
+            "continent": {
+             "type": "string"
+            },
+            "country": {
+             "type": "string"
+            },
+            "countryGrouping": {
+             "type": "string"
+            },
+            "countryIso2": {
+             "type": "string"
+            },
+            "region": {
+             "type": "string"
+            },
+            "state": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "locationsZipcodes": {
+          "items": {
+           "properties": {
+            "countryIso2": {
+             "type": "string"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "mainIndustriesIds": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "naicsCodes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "names": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "previousCompanyDomains": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "previousCompanyNames": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "revenues": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "minimum": 0,
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "searchText": {
+          "maxLength": 200,
+          "type": "string"
+         },
+         "sicCodes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "signals": {
+          "properties": {
+           "filterByDepartment": {
+            "items": {
+             "properties": {
+              "department": {
+               "type": "string"
+              },
+              "startDate": {
+               "format": "date",
+               "type": "string"
+              }
+             },
+             "required": [
+              "department"
+             ],
+             "type": "object"
+            },
+            "type": "array"
+           },
+           "filterByIntentCategory": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           "filterByLocation": {
+            "items": {
+             "properties": {
+              "country": {
+               "type": "string"
+              },
+              "startDate": {
+               "format": "date",
+               "type": "string"
+              },
+              "state": {
+               "type": "string"
+              }
+             },
+             "type": "object"
+            },
+            "type": "array"
+           },
+           "startDate": {
+            "format": "date",
+            "type": "string"
+           },
+           "types": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           }
+          },
+          "type": "object"
+         },
+         "sizes": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "minimum": 0,
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "specialities": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "subIndustriesIds": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "technologies": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "technologiesCondition": {
+          "enum": [
+           "or",
+           "and"
+          ],
+          "type": "string"
+         },
+         "topicCountThreshold": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "minimum": 0,
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         }
+        },
+        "type": "object"
+       }
+      },
+      "required": [
+       "include"
+      ],
+      "type": "object"
+     },
+     "contacts": {
+      "properties": {
+       "exclude": {
+        "properties": {
+         "departments": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "existingDataPoints": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "jobTitles": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "locations": {
+          "items": {
+           "properties": {
+            "city": {
+             "type": "string"
+            },
+            "continent": {
+             "type": "string"
+            },
+            "country": {
+             "type": "string"
+            },
+            "countryGrouping": {
+             "type": "string"
+            },
+            "countryIso2": {
+             "type": "string"
+            },
+            "region": {
+             "type": "string"
+            },
+            "state": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "seniorityIds": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "skills": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "type": "object"
+       },
+       "include": {
+        "properties": {
+         "departments": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "existingDataPoints": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "jobTitles": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "locations": {
+          "items": {
+           "properties": {
+            "city": {
+             "type": "string"
+            },
+            "continent": {
+             "type": "string"
+            },
+            "country": {
+             "type": "string"
+            },
+            "countryGrouping": {
+             "type": "string"
+            },
+            "countryIso2": {
+             "type": "string"
+            },
+            "region": {
+             "type": "string"
+            },
+            "state": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "seniorityIds": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "skills": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "type": "object"
+       }
+      },
+      "type": "object"
+     }
+    },
+    "required": [
+     "companies"
+    ],
+    "type": "object"
+   },
+   "options": {
+    "properties": {
+     "includePartialProfiles": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "pagination": {
+    "properties": {
+     "page": {
+      "maximum": 1000,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "size": {
+      "maximum": 100,
+      "minimum": 10,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "page",
+     "size"
+    ],
+    "type": "object"
+   },
+   "tableId": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "pagination",
+   "filters"
+  ],
+  "type": "object"
+ },
+ "/v3/companies/search": {
+  "properties": {
+   "companies": {
+    "items": {
+     "properties": {
+      "clientReferenceId": {
+       "type": "string"
+      },
+      "domain": {
+       "type": "string"
+      },
+      "id": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      }
+     },
+     "type": "object"
+    },
+    "maxItems": 100,
+    "minItems": 1,
+    "type": "array"
+   },
+   "options": {
+    "properties": {
+     "includePartialProfiles": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "signals": {
+    "properties": {
+     "maxResultsPerSignal": {
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "startDate": {
+      "format": "date",
+      "type": "string"
+     },
+     "types": {
+      "items": {
+       "enum": [
+        "allSignals",
+        "linkedinActivityIntent",
+        "websiteTrafficDecrease",
+        "websiteTrafficIncrease",
+        "itSpendIncrease",
+        "itSpendDecrease",
+        "surgeInHiring",
+        "headcountIncrease1m",
+        "headcountIncrease3m",
+        "headcountIncrease6m",
+        "headcountIncrease12m",
+        "headcountDecrease1m",
+        "headcountDecrease3m",
+        "headcountDecrease6m",
+        "headcountDecrease12m",
+        "surgeInHiringByDepartment",
+        "surgeInHiringByLocation",
+        "riskNews",
+        "commercialActivityNews",
+        "corporateStrategyNews",
+        "financialEventsNews",
+        "peopleNews",
+        "marketIntelligenceNews",
+        "productActivityNews"
+       ],
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "types"
+    ],
+    "type": "object"
+   }
+  },
+  "required": [
+   "companies"
+  ],
+  "type": "object"
+ },
+ "/v3/companies/search-and-enrich": {
+  "properties": {
+   "companies": {
+    "items": {
+     "properties": {
+      "clientReferenceId": {
+       "type": "string"
+      },
+      "domain": {
+       "type": "string"
+      },
+      "id": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      }
+     },
+     "type": "object"
+    },
+    "maxItems": 100,
+    "minItems": 1,
+    "type": "array"
+   },
+   "options": {
+    "properties": {
+     "includePartialProfiles": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   }
+  },
+  "required": [
+   "companies"
+  ],
+  "type": "object"
+ },
+ "/v3/contacts/enrich": {
+  "properties": {
+   "ids": {
+    "items": {
+     "type": "string"
+    },
+    "maxItems": 100,
+    "minItems": 1,
+    "type": "array"
+   },
+   "reveal": {
+    "items": {
+     "enum": [
+      "emails",
+      "phones"
+     ],
+     "type": "string"
+    },
+    "type": "array"
+   },
+   "tableId": {
+    "type": "string"
+   },
+   "waterfallEnabled": {
+    "description": "Whether this call is allowed to fall through to your enabled third-party providers when Lusha's own data has no match, for the fields requested via `reveal`. Defaults to `true` whenever Data Waterfall",
+    "type": "boolean"
+   }
+  },
+  "required": [
+   "ids"
+  ],
+  "type": "object"
+ },
+ "/v3/contacts/lookalike": {
+  "additionalProperties": false,
+  "properties": {
+   "dedupeSessionId": {
+    "format": "uuid",
+    "type": "string"
+   },
+   "exclude": {
+    "additionalProperties": false,
+    "nullable": true,
+    "properties": {
+     "contactIds": {
+      "items": {
+       "type": "integer"
+      },
+      "maxItems": 100,
+      "type": "array"
+     },
+     "contacts": {
+      "items": {
+       "additionalProperties": false,
+       "description": "At least one of companyDomain or companyName is required.",
+       "properties": {
+        "companyDomain": {
+         "type": "string"
+        },
+        "companyName": {
+         "type": "string"
+        },
+        "firstName": {
+         "type": "string"
+        },
+        "lastName": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "firstName",
+        "lastName"
+       ],
+       "type": "object"
+      },
+      "maxItems": 100,
+      "type": "array"
+     },
+     "emails": {
+      "items": {
+       "format": "email",
+       "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array"
+     },
+     "ids": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array"
+     },
+     "linkedinUrls": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "limit": {
+    "maximum": 100,
+    "minimum": 1,
+    "type": "integer"
+   },
+   "seeds": {
+    "additionalProperties": false,
+    "nullable": true,
+    "properties": {
+     "contactIds": {
+      "items": {
+       "type": "integer"
+      },
+      "maxItems": 100,
+      "type": "array"
+     },
+     "contacts": {
+      "items": {
+       "additionalProperties": false,
+       "description": "At least one of companyDomain or companyName is required.",
+       "properties": {
+        "companyDomain": {
+         "type": "string"
+        },
+        "companyName": {
+         "type": "string"
+        },
+        "firstName": {
+         "type": "string"
+        },
+        "lastName": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "firstName",
+        "lastName"
+       ],
+       "type": "object"
+      },
+      "maxItems": 100,
+      "type": "array"
+     },
+     "emails": {
+      "items": {
+       "format": "email",
+       "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array"
+     },
+     "ids": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array"
+     },
+     "linkedinUrls": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "tableId": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "seeds"
+  ],
+  "type": "object"
+ },
+ "/v3/contacts/prospecting": {
+  "properties": {
+   "filters": {
+    "properties": {
+     "companies": {
+      "properties": {
+       "exclude": {
+        "properties": {
+         "businessModel": {
+          "items": {
+           "enum": [
+            "B2B",
+            "B2C",
+            "B2G"
+           ],
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "companyType": {
+          "items": {
+           "enum": [
+            "Government",
+            "Private Company",
+            "Public Company",
+            "Educational",
+            "Non Profit",
+            "Self Employed"
+           ],
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "domains": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "exactKeywords": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "exactSpecialities": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "foundedYear": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "funding": {
+          "properties": {
+           "date": {
+            "properties": {
+             "coverage": {
+              "enum": [
+               "last_funding",
+               "any_round",
+               "total_funds",
+               "last_round"
+              ],
+              "type": "string"
+             },
+             "date": {
+              "format": "date",
+              "type": "string"
+             }
+            },
+            "type": "object"
+           },
+           "investors": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           "isIpo": {
+            "type": "boolean"
+           },
+           "names": {
+            "items": {
+             "properties": {
+              "coverage": {
+               "enum": [
+                "last_funding",
+                "any_round",
+                "total_funds",
+                "last_round"
+               ],
+               "type": "string"
+              },
+              "name": {
+               "enum": [
+                "angel",
+                "venture",
+                "private_equity",
+                "crowdfunding",
+                "grant",
+                "debt_financing",
+                "other"
+               ],
+               "type": "string"
+              }
+             },
+             "type": "object"
+            },
+            "type": "array"
+           },
+           "ranges": {
+            "items": {
+             "properties": {
+              "coverage": {
+               "enum": [
+                "last_funding",
+                "any_round",
+                "total_funds",
+                "last_round"
+               ],
+               "type": "string"
+              },
+              "max": {
+               "type": "integer"
+              },
+              "min": {
+               "type": "integer"
+              }
+             },
+             "type": "object"
+            },
+            "type": "array"
+           },
+           "rounds": {
+            "items": {
+             "properties": {
+              "coverage": {
+               "enum": [
+                "last_funding",
+                "any_round",
+                "total_funds",
+                "last_round"
+               ],
+               "type": "string"
+              },
+              "round": {
+               "enum": [
+                "pre_seed",
+                "seed",
+                "series_a",
+                "series_b",
+                "series_c",
+                "series_d",
+                "series_e",
+                "series_f",
+                "series_g",
+                "series_h",
+                "other"
+               ],
+               "type": "string"
+              }
+             },
+             "type": "object"
+            },
+            "type": "array"
+           },
+           "types": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           }
+          },
+          "type": "object"
+         },
+         "geographicDetails": {
+          "items": {
+           "properties": {
+            "country": {
+             "type": "string"
+            },
+            "distance": {
+             "type": "integer"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "headquarterZipcodes": {
+          "items": {
+           "properties": {
+            "countryIso2": {
+             "type": "string"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "ids": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "industriesLabels": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "intentMaxScore": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+         },
+         "intentMinScore": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+         },
+         "intentTopics": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "intentTopicsCondition": {
+          "enum": [
+           "or",
+           "and"
+          ],
+          "type": "string"
+         },
+         "intentTopicsOperator": {
+          "enum": [
+           "or",
+           "and",
+           "any",
+           "all"
+          ],
+          "type": "string"
+         },
+         "keywords": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "keywordsSearchFields": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "linkedinUrls": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "locations": {
+          "items": {
+           "properties": {
+            "city": {
+             "type": "string"
+            },
+            "continent": {
+             "type": "string"
+            },
+            "country": {
+             "type": "string"
+            },
+            "countryGrouping": {
+             "type": "string"
+            },
+            "countryIso2": {
+             "type": "string"
+            },
+            "region": {
+             "type": "string"
+            },
+            "state": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "locationsZipcodes": {
+          "items": {
+           "properties": {
+            "countryIso2": {
+             "type": "string"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "mainIndustriesIds": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "naicsCodes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "names": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "previousCompanyDomains": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "previousCompanyNames": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "revenues": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "minimum": 0,
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "sicCodes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "sizes": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "minimum": 0,
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "specialities": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "subIndustriesIds": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "technologies": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "technologiesCondition": {
+          "enum": [
+           "or",
+           "and"
+          ],
+          "type": "string"
+         },
+         "topicCountThreshold": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "minimum": 0,
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         }
+        },
+        "type": "object"
+       },
+       "include": {
+        "properties": {
+         "businessModel": {
+          "items": {
+           "enum": [
+            "B2B",
+            "B2C",
+            "B2G"
+           ],
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "companyType": {
+          "items": {
+           "enum": [
+            "Government",
+            "Private Company",
+            "Public Company",
+            "Educational",
+            "Non Profit",
+            "Self Employed"
+           ],
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "domains": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "exactKeywords": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "exactSpecialities": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "foundedYear": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "funding": {
+          "properties": {
+           "date": {
+            "properties": {
+             "coverage": {
+              "enum": [
+               "last_funding",
+               "any_round",
+               "total_funds",
+               "last_round"
+              ],
+              "type": "string"
+             },
+             "date": {
+              "format": "date",
+              "type": "string"
+             }
+            },
+            "type": "object"
+           },
+           "investors": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           "isIpo": {
+            "type": "boolean"
+           },
+           "names": {
+            "items": {
+             "properties": {
+              "coverage": {
+               "enum": [
+                "last_funding",
+                "any_round",
+                "total_funds",
+                "last_round"
+               ],
+               "type": "string"
+              },
+              "name": {
+               "enum": [
+                "angel",
+                "venture",
+                "private_equity",
+                "crowdfunding",
+                "grant",
+                "debt_financing",
+                "other"
+               ],
+               "type": "string"
+              }
+             },
+             "type": "object"
+            },
+            "type": "array"
+           },
+           "ranges": {
+            "items": {
+             "properties": {
+              "coverage": {
+               "enum": [
+                "last_funding",
+                "any_round",
+                "total_funds",
+                "last_round"
+               ],
+               "type": "string"
+              },
+              "max": {
+               "type": "integer"
+              },
+              "min": {
+               "type": "integer"
+              }
+             },
+             "type": "object"
+            },
+            "type": "array"
+           },
+           "rounds": {
+            "items": {
+             "properties": {
+              "coverage": {
+               "enum": [
+                "last_funding",
+                "any_round",
+                "total_funds",
+                "last_round"
+               ],
+               "type": "string"
+              },
+              "round": {
+               "enum": [
+                "pre_seed",
+                "seed",
+                "series_a",
+                "series_b",
+                "series_c",
+                "series_d",
+                "series_e",
+                "series_f",
+                "series_g",
+                "series_h",
+                "other"
+               ],
+               "type": "string"
+              }
+             },
+             "type": "object"
+            },
+            "type": "array"
+           },
+           "types": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           }
+          },
+          "type": "object"
+         },
+         "geographicDetails": {
+          "items": {
+           "properties": {
+            "country": {
+             "type": "string"
+            },
+            "distance": {
+             "type": "integer"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "headquarterZipcodes": {
+          "items": {
+           "properties": {
+            "countryIso2": {
+             "type": "string"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "ids": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "industriesLabels": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "intentMaxScore": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+         },
+         "intentMinScore": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+         },
+         "intentTopics": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "intentTopicsCondition": {
+          "enum": [
+           "or",
+           "and"
+          ],
+          "type": "string"
+         },
+         "intentTopicsOperator": {
+          "enum": [
+           "or",
+           "and",
+           "any",
+           "all"
+          ],
+          "type": "string"
+         },
+         "keywords": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "keywordsSearchFields": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "linkedinUrls": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "locations": {
+          "items": {
+           "properties": {
+            "city": {
+             "type": "string"
+            },
+            "continent": {
+             "type": "string"
+            },
+            "country": {
+             "type": "string"
+            },
+            "countryGrouping": {
+             "type": "string"
+            },
+            "countryIso2": {
+             "type": "string"
+            },
+            "region": {
+             "type": "string"
+            },
+            "state": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "locationsZipcodes": {
+          "items": {
+           "properties": {
+            "countryIso2": {
+             "type": "string"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "mainIndustriesIds": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "naicsCodes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "names": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "previousCompanyDomains": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "previousCompanyNames": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "revenues": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "minimum": 0,
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "sicCodes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "sizes": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "minimum": 0,
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "specialities": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "subIndustriesIds": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "technologies": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "technologiesCondition": {
+          "enum": [
+           "or",
+           "and"
+          ],
+          "type": "string"
+         },
+         "topicCountThreshold": {
+          "items": {
+           "properties": {
+            "max": {
+             "type": "integer"
+            },
+            "min": {
+             "minimum": 0,
+             "type": "integer"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         }
+        },
+        "type": "object"
+       }
+      },
+      "type": "object"
+     },
+     "contacts": {
+      "properties": {
+       "exclude": {
+        "properties": {
+         "awards": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "certifications": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "countries": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "departments": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "education": {
+          "description": "Refinement-only \u2014 must be paired with a base filter.",
+          "properties": {
+           "degrees": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           "fieldsOfStudy": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           "graduationYearLte": {
+            "type": "integer"
+           },
+           "schools": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           "startYearGte": {
+            "type": "integer"
+           }
+          },
+          "type": "object"
+         },
+         "emails": {
+          "items": {
+           "format": "email",
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "existingDataPoints": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "existingDataPointsCondition": {
+          "enum": [
+           "or",
+           "and"
+          ],
+          "type": "string"
+         },
+         "geographicDetails": {
+          "items": {
+           "properties": {
+            "country": {
+             "type": "string"
+            },
+            "distance": {
+             "type": "integer"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "ids": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "jobChangedAfterDate": {
+          "description": "Refinement-only \u2014 must be paired with a base filter (e.g. `jobTitles`).",
+          "format": "date",
+          "type": "string"
+         },
+         "jobChangedLastViewDate": {
+          "description": "Refinement-only \u2014 must be paired with a base filter.",
+          "format": "date",
+          "type": "string"
+         },
+         "jobTitles": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "jobTitlesExactMatch": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "linkedinUrls": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "locations": {
+          "items": {
+           "properties": {
+            "city": {
+             "type": "string"
+            },
+            "continent": {
+             "type": "string"
+            },
+            "country": {
+             "type": "string"
+            },
+            "countryGrouping": {
+             "type": "string"
+            },
+            "countryIso2": {
+             "type": "string"
+            },
+            "region": {
+             "type": "string"
+            },
+            "state": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "names": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "normalizedJobTitles": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "previousEmails": {
+          "items": {
+           "format": "email",
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "previousJobTitle": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "score": {
+          "description": "Refinement-only \u2014 must be paired with a base filter. Raw 0\u2013100 contact score. Distinct from the `confidence` band (\"A+\"/\"A\") returned on enriched contacts, which is derived from this score (e.g. `A+` ",
+          "properties": {
+           "maxScore": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+           },
+           "minScore": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+           }
+          },
+          "type": "object"
+         },
+         "searchText": {
+          "maxLength": 200,
+          "type": "string"
+         },
+         "seniorityIds": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "signals": {
+          "properties": {
+           "startDate": {
+            "format": "date",
+            "type": "string"
+           },
+           "types": {
+            "items": {
+             "enum": [
+              "allSignals",
+              "promotion",
+              "companyChange"
+             ],
+             "type": "string"
+            },
+            "type": "array"
+           }
+          },
+          "type": "object"
+         },
+         "skills": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "type": "object"
+       },
+       "include": {
+        "properties": {
+         "awards": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "certifications": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "countries": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "departments": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "education": {
+          "description": "Refinement-only \u2014 must be paired with a base filter.",
+          "properties": {
+           "degrees": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           "fieldsOfStudy": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           "graduationYearLte": {
+            "type": "integer"
+           },
+           "schools": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           "startYearGte": {
+            "type": "integer"
+           }
+          },
+          "type": "object"
+         },
+         "emails": {
+          "items": {
+           "format": "email",
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "existingDataPoints": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "existingDataPointsCondition": {
+          "enum": [
+           "or",
+           "and"
+          ],
+          "type": "string"
+         },
+         "geographicDetails": {
+          "items": {
+           "properties": {
+            "country": {
+             "type": "string"
+            },
+            "distance": {
+             "type": "integer"
+            },
+            "zipcode": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "ids": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "jobChangedAfterDate": {
+          "description": "Refinement-only \u2014 must be paired with a base filter (e.g. `jobTitles`).",
+          "format": "date",
+          "type": "string"
+         },
+         "jobChangedLastViewDate": {
+          "description": "Refinement-only \u2014 must be paired with a base filter.",
+          "format": "date",
+          "type": "string"
+         },
+         "jobTitles": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "jobTitlesExactMatch": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "linkedinUrls": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "locations": {
+          "items": {
+           "properties": {
+            "city": {
+             "type": "string"
+            },
+            "continent": {
+             "type": "string"
+            },
+            "country": {
+             "type": "string"
+            },
+            "countryGrouping": {
+             "type": "string"
+            },
+            "countryIso2": {
+             "type": "string"
+            },
+            "region": {
+             "type": "string"
+            },
+            "state": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "names": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "normalizedJobTitles": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "previousEmails": {
+          "items": {
+           "format": "email",
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "previousJobTitle": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "score": {
+          "description": "Refinement-only \u2014 must be paired with a base filter. Raw 0\u2013100 contact score. Distinct from the `confidence` band (\"A+\"/\"A\") returned on enriched contacts, which is derived from this score (e.g. `A+` ",
+          "properties": {
+           "maxScore": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+           },
+           "minScore": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+           }
+          },
+          "type": "object"
+         },
+         "searchText": {
+          "maxLength": 200,
+          "type": "string"
+         },
+         "seniorityIds": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "signals": {
+          "properties": {
+           "startDate": {
+            "format": "date",
+            "type": "string"
+           },
+           "types": {
+            "items": {
+             "enum": [
+              "allSignals",
+              "promotion",
+              "companyChange"
+             ],
+             "type": "string"
+            },
+            "type": "array"
+           }
+          },
+          "type": "object"
+         },
+         "skills": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "type": "object"
+       }
+      },
+      "type": "object"
+     }
+    },
+    "type": "object"
+   },
+   "options": {
+    "properties": {
+     "excludeDnc": {
+      "type": "boolean"
+     },
+     "includePartialProfiles": {
+      "type": "boolean"
+     },
+     "maxContactsPerCompany": {
+      "maximum": 20,
+      "minimum": 1,
+      "type": "integer"
+     }
+    },
+    "type": "object"
+   },
+   "pagination": {
+    "properties": {
+     "page": {
+      "maximum": 1000,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "size": {
+      "maximum": 100,
+      "minimum": 10,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "page",
+     "size"
+    ],
+    "type": "object"
+   },
+   "tableId": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "pagination",
+   "filters"
+  ],
+  "type": "object"
+ },
+ "/v3/contacts/search": {
+  "properties": {
+   "contacts": {
+    "items": {
+     "properties": {
+      "clientReferenceId": {
+       "type": "string"
+      },
+      "companyDomain": {
+       "type": "string"
+      },
+      "companyName": {
+       "type": "string"
+      },
+      "email": {
+       "format": "email",
+       "type": "string"
+      },
+      "firstName": {
+       "type": "string"
+      },
+      "id": {
+       "type": "string"
+      },
+      "lastName": {
+       "type": "string"
+      },
+      "linkedinUrl": {
+       "type": "string"
+      }
+     },
+     "type": "object"
+    },
+    "maxItems": 100,
+    "minItems": 1,
+    "type": "array"
+   },
+   "options": {
+    "properties": {
+     "includePartialProfiles": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "signals": {
+    "properties": {
+     "maxResultsPerSignal": {
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "startDate": {
+      "format": "date",
+      "type": "string"
+     },
+     "types": {
+      "items": {
+       "enum": [
+        "allSignals",
+        "promotion",
+        "companyChange"
+       ],
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "types"
+    ],
+    "type": "object"
+   }
+  },
+  "required": [
+   "contacts"
+  ],
+  "type": "object"
+ },
+ "/v3/contacts/search-and-enrich": {
+  "properties": {
+   "contacts": {
+    "items": {
+     "properties": {
+      "clientReferenceId": {
+       "type": "string"
+      },
+      "companyDomain": {
+       "type": "string"
+      },
+      "companyName": {
+       "type": "string"
+      },
+      "email": {
+       "format": "email",
+       "type": "string"
+      },
+      "firstName": {
+       "type": "string"
+      },
+      "id": {
+       "type": "string"
+      },
+      "lastName": {
+       "type": "string"
+      },
+      "linkedinUrl": {
+       "type": "string"
+      }
+     },
+     "type": "object"
+    },
+    "maxItems": 100,
+    "minItems": 1,
+    "type": "array"
+   },
+   "options": {
+    "properties": {
+     "includePartialProfiles": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "reveal": {
+    "items": {
+     "enum": [
+      "emails",
+      "phones"
+     ],
+     "type": "string"
+    },
+    "type": "array"
+   }
+  },
+  "required": [
+   "contacts"
+  ],
+  "type": "object"
+ }
+}

@@ -699,6 +699,10 @@ export class Lusha implements INodeType {
 				},
 				options: contactAdvancedFilterOptions(),
 			},
+			// Two declarations of the same parameter, one per prospecting endpoint,
+			// because the endpoints do not accept the same company filters: `funding`
+			// and `industriesLabels` are contacts/prospecting only. Sharing one option
+			// list would offer fields that come back as a 400 on the other action.
 			{
 				displayName: 'Company Filters (Advanced)',
 				name: 'companyAdvancedFilters',
@@ -707,11 +711,25 @@ export class Lusha implements INodeType {
 				default: {},
 				displayOptions: {
 					show: {
-						resource: ['contact', 'company'],
-						operation: ['prospectingContacts', 'prospectingCompanies'],
+						resource: ['contact'],
+						operation: ['prospectingContacts'],
 					},
 				},
-				options: companyAdvancedFilterOptions(),
+				options: companyAdvancedFilterOptions('contactsProspecting'),
+			},
+			{
+				displayName: 'Company Filters (Advanced)',
+				name: 'companyAdvancedFilters',
+				type: 'collection',
+				placeholder: 'Add company filter',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['prospectingCompanies'],
+					},
+				},
+				options: companyAdvancedFilterOptions('companiesProspecting'),
 			},
 			...geographicFilterProperties(),
 			...fundingRowProperties(),
@@ -2317,7 +2335,7 @@ export class Lusha implements INodeType {
 							if (Object.keys(companyAdvancedOnContacts).length) {
 								const companiesInclude = ((contactSearchBody.filters as IDataObject)
 									.companies as IDataObject).include as IDataObject;
-								applyCompanyAdvancedFilters(companyAdvancedOnContacts, companiesInclude);
+								applyCompanyAdvancedFilters(companyAdvancedOnContacts, companiesInclude, 'contactsProspecting');
 							}
 
 							applyGeographicFilters(
@@ -2914,7 +2932,7 @@ export class Lusha implements INodeType {
 							// Remaining documented company filter fields.
 							const companyAdvanced = this.getNodeParameter('companyAdvancedFilters', i, {}) as IDataObject;
 							if (Object.keys(companyAdvanced).length) {
-								applyCompanyAdvancedFilters(companyAdvanced, companiesInclude);
+								applyCompanyAdvancedFilters(companyAdvanced, companiesInclude, 'companiesProspecting');
 							}
 
 							applyGeographicFilters(
@@ -2927,14 +2945,24 @@ export class Lusha implements INodeType {
 								companiesInclude,
 							);
 
-							applyFundingRows(
-								{
-									ranges: this.getNodeParameter('companyFundingRanges', i, {}) as IDataObject,
-									rounds: this.getNodeParameter('companyFundingRounds', i, {}) as IDataObject,
-									names: this.getNodeParameter('companyFundingNames', i, {}) as IDataObject,
-								},
-								companiesInclude,
-							);
+							// No applyFundingRows here: companies/prospecting does not accept
+							// filters.companies.include.funding, so the rows are not offered.
+
+							// The Additional Options panel offers Search Text and the signal
+							// fields on this action too, and they were being collected and
+							// dropped. companies/prospecting takes both under
+							// filters.companies.include, the same place contacts/prospecting
+							// takes them under filters.contacts.include.
+							const companySearchText = this.getNodeParameter('searchAdditionalOptions.searchText', i, '') as string;
+							if (companySearchText) companiesInclude.searchText = companySearchText;
+
+							const companySignalNames = this.getNodeParameter('searchAdditionalOptions.signalNames', i, []) as string[];
+							if (companySignalNames.length) {
+								const startDate = this.getNodeParameter('searchAdditionalOptions.signalStartDate', i, '') as string;
+								const signalFilter: IDataObject = { types: companySignalNames };
+								if (startDate) signalFilter.startDate = startDate;
+								companiesInclude.signals = signalFilter;
+							}
 
 							if (pruneEmptyFilterBlocks(companySearchBody.filters as IDataObject) === 0) {
 								throw new NodeOperationError(

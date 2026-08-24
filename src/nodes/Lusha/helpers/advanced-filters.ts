@@ -21,6 +21,9 @@ type Kind =
 	| 'options' // single choice -> string
 	| 'multiOptions'; // multiple choice -> string[]
 
+/** Which prospecting endpoint a company-side filter is accepted by. */
+export type Endpoint = 'contactsProspecting' | 'companiesProspecting';
+
 interface FilterSpec {
 	/** n8n parameter name, unique within its collection. */
 	name: string;
@@ -39,6 +42,13 @@ interface FilterSpec {
 	max?: number;
 	/** Documented as only meaningful alongside a base filter such as jobTitles. */
 	refinementOnly?: boolean;
+	/**
+	 * The two prospecting endpoints do NOT take the same company filters, even
+	 * though both nest them under `filters.companies.include`. `funding` and
+	 * `industriesLabels` exist only on contacts/prospecting; sending them to
+	 * companies/prospecting is a 400. Omit to offer a filter on both.
+	 */
+	only?: Endpoint;
 }
 
 const CONTACT_SPEC: FilterSpec[] = [
@@ -93,6 +103,7 @@ const COMPANY_SPEC: FilterSpec[] = [
 	{ name: 'companyIds', displayName: 'Lusha Company IDs', kind: 'stringList', target: 'ids',
 	  description: 'Encrypted company IDs (vN.…) from a previous search, or legacy numeric IDs. Anything else is rejected.' },
 	{ name: 'industriesLabels', displayName: 'Industry Labels', kind: 'stringList', target: 'industriesLabels',
+	  only: 'contactsProspecting',
 	  description: 'Free-text industry labels, as an alternative to the industry ID pickers', placeholder: 'Software, SaaS' },
 	{ name: 'companyLinkedinUrls', displayName: 'Company LinkedIn URLs', kind: 'stringList', target: 'linkedinUrls',
 	  placeholder: 'https://www.linkedin.com/company/acme' },
@@ -135,12 +146,16 @@ const COMPANY_SPEC: FilterSpec[] = [
 	{ name: 'topicCountMax', displayName: 'Intent Topic Count Max', kind: 'number', target: 'topicCountThreshold[].max' },
 	{ name: 'foundedYearMin', displayName: 'Founded Year From', kind: 'number', target: 'foundedYear[].min', placeholder: '2000' },
 	{ name: 'foundedYearMax', displayName: 'Founded Year To', kind: 'number', target: 'foundedYear[].max', placeholder: '2020' },
-	{ name: 'fundingIsIpo', displayName: 'Funding — Is IPO', kind: 'boolean', target: 'funding.isIpo' },
+	{ name: 'fundingIsIpo', displayName: 'Funding — Is IPO', kind: 'boolean', target: 'funding.isIpo',
+	  only: 'contactsProspecting' },
 	{ name: 'fundingInvestors', displayName: 'Funding — Investors', kind: 'stringList', target: 'funding.investors',
+	  only: 'contactsProspecting',
 	  description: 'Free text. The API accepts this but the documentation notes it is not currently applied downstream.',
 	  placeholder: 'Sequoia, Accel' },
-	{ name: 'fundingDateCoverage', displayName: 'Funding — Date Coverage', kind: 'options', target: 'funding.date.coverage', choices: COVERAGE },
-	{ name: 'fundingDate', displayName: 'Funding — Date', kind: 'date', target: 'funding.date.date', placeholder: '2025-01-01' },
+	{ name: 'fundingDateCoverage', displayName: 'Funding — Date Coverage', kind: 'options', target: 'funding.date.coverage',
+	  choices: COVERAGE, only: 'contactsProspecting' },
+	{ name: 'fundingDate', displayName: 'Funding — Date', kind: 'date', target: 'funding.date.date',
+	  placeholder: '2025-01-01', only: 'contactsProspecting' },
 ];
 
 /** Turn one spec entry into an n8n property definition. */
@@ -182,8 +197,13 @@ export function contactAdvancedFilterOptions(): INodeProperties[] {
 	return CONTACT_SPEC.map(toProperty);
 }
 
-export function companyAdvancedFilterOptions(): INodeProperties[] {
-	return COMPANY_SPEC.map(toProperty);
+export function companyAdvancedFilterOptions(endpoint?: Endpoint): INodeProperties[] {
+	return COMPANY_SPEC.filter((spec) => inScope(spec, endpoint)).map(toProperty);
+}
+
+/** A spec with no `only` is accepted everywhere; otherwise the endpoint must match. */
+function inScope(spec: FilterSpec, endpoint?: Endpoint): boolean {
+	return !spec.only || !endpoint || spec.only === endpoint;
 }
 
 const splitList = (raw: unknown): string[] =>
@@ -275,8 +295,14 @@ export function applyContactAdvancedFilters(collected: IDataObject, include: IDa
 	applySpec(CONTACT_SPEC, collected, include);
 }
 
-export function applyCompanyAdvancedFilters(collected: IDataObject, include: IDataObject): void {
-	applySpec(COMPANY_SPEC, collected, include);
+export function applyCompanyAdvancedFilters(
+	collected: IDataObject,
+	include: IDataObject,
+	endpoint?: Endpoint,
+): void {
+	// Filtered again here, not just in the UI: a workflow saved before a field was
+	// scoped would still carry the value, and sending it is a 400.
+	applySpec(COMPANY_SPEC.filter((spec) => inScope(spec, endpoint)), collected, include);
 }
 
 /**
@@ -412,6 +438,14 @@ const SHOW_PROSPECTING = {
 	operation: ['prospectingContacts', 'prospectingCompanies'],
 };
 
+// `funding` is absent from the companies/prospecting request schema, so these rows
+// belong to Prospect Contacts only -- offering them on Prospect Companies would
+// build a body the API answers with a 400.
+const SHOW_CONTACT_PROSPECTING = {
+	resource: ['contact'],
+	operation: ['prospectingContacts'],
+};
+
 /**
  * funding.ranges / rounds / names are arrays of objects, each pairing a `coverage`
  * with its own payload, so they need repeating rows rather than collection entries.
@@ -430,7 +464,7 @@ export function fundingRowProperties(): INodeProperties[] {
 			typeOptions: { multipleValues: true },
 			placeholder: 'Add amount range',
 			default: {},
-			displayOptions: { show: SHOW_PROSPECTING as never },
+			displayOptions: { show: SHOW_CONTACT_PROSPECTING as never },
 			description: 'Filter by funding amount, per coverage window',
 			options: [{
 				name: 'range', displayName: 'Range',
@@ -448,7 +482,7 @@ export function fundingRowProperties(): INodeProperties[] {
 			typeOptions: { multipleValues: true },
 			placeholder: 'Add round',
 			default: {},
-			displayOptions: { show: SHOW_PROSPECTING as never },
+			displayOptions: { show: SHOW_CONTACT_PROSPECTING as never },
 			description: 'Filter by funding round, per coverage window',
 			options: [{
 				name: 'round', displayName: 'Round',
@@ -462,7 +496,7 @@ export function fundingRowProperties(): INodeProperties[] {
 			typeOptions: { multipleValues: true },
 			placeholder: 'Add funding type',
 			default: {},
-			displayOptions: { show: SHOW_PROSPECTING as never },
+			displayOptions: { show: SHOW_CONTACT_PROSPECTING as never },
 			description: 'Filter by funding type, per coverage window',
 			options: [{
 				name: 'type', displayName: 'Type',
