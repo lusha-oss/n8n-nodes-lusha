@@ -60,4 +60,7 @@ logs/
 *-credentials.json
 *-secret*
 *.sh
+# ...but the e2e harness entrypoint is part of the test suite, not a local script.
+# Without this, `npm run test:e2e` is broken on a fresh clone and git add says nothing.
+!test/e2e/run.sh
 test-local.md
