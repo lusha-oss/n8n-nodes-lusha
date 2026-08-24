@@ -18,6 +18,16 @@ import {
 	getDepartmentOptions,
 	getSeniorityOptions,
 } from './helpers/options';
+import {
+	contactAdvancedFilterOptions,
+	companyAdvancedFilterOptions,
+	applyContactAdvancedFilters,
+	applyCompanyAdvancedFilters,
+	geographicFilterProperties,
+	applyGeographicFilters,
+	fundingRowProperties,
+	applyFundingRows,
+} from './helpers/advanced-filters';
 
 /**
  * Fetches one of Lusha's filter-discovery endpoints for a loadOptions dropdown.
@@ -54,6 +64,15 @@ function titleCaseLabel(raw: string): string {
 		.split(/([\s-])/)
 		.map((part) => (/^[\s-]$/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1)))
 		.join('');
+}
+
+/**
+ * Optional tableId, accepted by enrich, prospecting and lookalike requests: results
+ * are additionally persisted into an existing Lusha table. Omitted when blank.
+ */
+function withTableId(body: IDataObject, tableId: string): IDataObject {
+	if (tableId) body.tableId = tableId;
+	return body;
 }
 
 /** V3PaginationRequest.size accepts 10–100 (default 25). */
@@ -662,6 +681,40 @@ export class Lusha implements INodeType {
 			},
 			]
 		},
+			// The remaining V3ContactFilterCriteria and V3CompanyFilterCriteria fields.
+			// Split into their own collections rather than added to Search Filters above:
+			// that collection is already 18 entries, and every existing parameter name
+			// there is preserved so saved workflows keep working.
+			{
+				displayName: 'Contact Filters (Advanced)',
+				name: 'contactAdvancedFilters',
+				type: 'collection',
+				placeholder: 'Add contact filter',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['prospectingContacts'],
+					},
+				},
+				options: contactAdvancedFilterOptions(),
+			},
+			{
+				displayName: 'Company Filters (Advanced)',
+				name: 'companyAdvancedFilters',
+				type: 'collection',
+				placeholder: 'Add company filter',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['contact', 'company'],
+						operation: ['prospectingContacts', 'prospectingCompanies'],
+					},
+				},
+				options: companyAdvancedFilterOptions(),
+			},
+			...geographicFilterProperties(),
+			...fundingRowProperties(),
 
 			// ===== CONTACT ENRICH FROM SEARCH FIELDS =====
 			// Note: POST /v3/contacts/enrich takes only ids/reveal/waterfallEnabled/tableId.
@@ -1680,6 +1733,57 @@ export class Lusha implements INodeType {
 				],
 			},
 
+			// Remaining documented request-body fields.
+			{
+				displayName: 'Table ID',
+				name: 'tableId',
+				type: 'string',
+				default: '',
+				placeholder: '482910',
+				displayOptions: {
+					show: {
+						resource: ['contact', 'company'],
+						operation: ['enrichBulk', 'enrichFromSearch', 'prospectingContacts', 'prospectingCompanies', 'searchLookalikes'],
+					},
+				},
+				description: 'Optional. Also persist these results into an existing Lusha table, populating the relevant columns. Leave blank to skip.',
+			},
+			{
+				displayName: 'Data Waterfall',
+				name: 'waterfallEnabled',
+				type: 'boolean',
+				default: true,
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichBulk', 'enrichFromSearch'],
+					},
+				},
+				description: 'Whether this call may fall through to your enabled third-party providers when Lusha has no match. Defaults to on whenever Data Waterfall is enabled on your account; turn off to opt this call out. No effect if the waterfall is off account-wide.',
+			},
+			{
+				displayName: 'Options',
+				name: 'searchAndEnrichOptions',
+				type: 'collection',
+				placeholder: 'Add option',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['contact', 'company'],
+						operation: ['searchAndEnrich'],
+					},
+				},
+				options: [
+					{
+						displayName: 'Include Partial Profiles',
+						name: 'includePartialProfiles',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to include profiles where only partial data is available',
+					},
+				],
+			},
+
 			// ===== PAGINATION FIELDS (CONTACT & COMPANY SEARCH) =====
 			{
 				displayName: 'Additional Options',
@@ -2202,6 +2306,40 @@ export class Lusha implements INodeType {
 								contactInclude.signals = signalFilter;
 							}
 
+							// Remaining documented filter fields, contact and company side.
+							const contactAdvanced = this.getNodeParameter('contactAdvancedFilters', i, {}) as IDataObject;
+							if (Object.keys(contactAdvanced).length) {
+								const contactInclude = ((contactSearchBody.filters as IDataObject)
+									.contacts as IDataObject).include as IDataObject;
+								applyContactAdvancedFilters(contactAdvanced, contactInclude);
+							}
+							const companyAdvancedOnContacts = this.getNodeParameter('companyAdvancedFilters', i, {}) as IDataObject;
+							if (Object.keys(companyAdvancedOnContacts).length) {
+								const companiesInclude = ((contactSearchBody.filters as IDataObject)
+									.companies as IDataObject).include as IDataObject;
+								applyCompanyAdvancedFilters(companyAdvancedOnContacts, companiesInclude);
+							}
+
+							applyGeographicFilters(
+								{
+									contactGeo: this.getNodeParameter('contactGeographicDetails', i, {}) as IDataObject,
+									companyGeo: this.getNodeParameter('companyGeographicDetails', i, {}) as IDataObject,
+									locationsZip: this.getNodeParameter('companyLocationsZipcodes', i, {}) as IDataObject,
+									hqZip: this.getNodeParameter('companyHeadquarterZipcodes', i, {}) as IDataObject,
+								},
+								((contactSearchBody.filters as IDataObject).contacts as IDataObject).include as IDataObject,
+								((contactSearchBody.filters as IDataObject).companies as IDataObject).include as IDataObject,
+							);
+
+							applyFundingRows(
+								{
+									ranges: this.getNodeParameter('companyFundingRanges', i, {}) as IDataObject,
+									rounds: this.getNodeParameter('companyFundingRounds', i, {}) as IDataObject,
+									names: this.getNodeParameter('companyFundingNames', i, {}) as IDataObject,
+								},
+								((contactSearchBody.filters as IDataObject).companies as IDataObject).include as IDataObject,
+							);
+
 							if (pruneEmptyFilterBlocks(contactSearchBody.filters as IDataObject) === 0) {
 								throw new NodeOperationError(
 									this.getNode(),
@@ -2232,7 +2370,7 @@ export class Lusha implements INodeType {
 								contactSearchBody.options = contactProspectOptions;
 							}
 
-							requestOptions.body = contactSearchBody;
+							requestOptions.body = withTableId(contactSearchBody, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 
@@ -2281,10 +2419,13 @@ export class Lusha implements INodeType {
 
 							// Honour the Reveal selection instead of always billing for both.
 							const efsReveal = this.getNodeParameter('enrichFromSearchReveal', i, ['emails', 'phones']) as string[];
-							requestOptions.body = {
+							// waterfallEnabled defaults to true server-side, so only send the opt-out.
+							const efsWaterfall = this.getNodeParameter('waterfallEnabled', i, true) as boolean;
+							requestOptions.body = withTableId({
 								ids: contactIds.map((id) => String(id)).slice(0, 100),
 								reveal: efsReveal.length ? efsReveal : ['emails', 'phones'],
-							};
+								...(efsWaterfall === false ? { waterfallEnabled: false } : {}),
+							}, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 
@@ -2457,10 +2598,12 @@ export class Lusha implements INodeType {
 							if (!requestOptions.headers) requestOptions.headers = {};
 							requestOptions.headers['Content-Type'] = 'application/json';
 							delete requestOptions.qs;
-							requestOptions.body = {
+							const bulkWaterfall = this.getNodeParameter('waterfallEnabled', i, true) as boolean;
+							requestOptions.body = withTableId({
 								ids: bulkMatched.map((m) => m.id as string),
 								reveal: bulkReveal,
-							};
+								...(bulkWaterfall === false ? { waterfallEnabled: false } : {}),
+							}, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 					case 'searchAndEnrich': {
@@ -2512,7 +2655,14 @@ export class Lusha implements INodeType {
 							const seReveal = this.getNodeParameter('searchAndEnrichReveal', i, ['emails', 'phones']) as string[];
 							if (seReveal.length === 0) seReveal.push('emails', 'phones');
 
-							requestOptions.body = { contacts: seContactList.slice(0, 100), reveal: seReveal };
+							const seOptions = this.getNodeParameter('searchAndEnrichOptions', i, {}) as IDataObject;
+							requestOptions.body = {
+								contacts: seContactList.slice(0, 100),
+								reveal: seReveal,
+								...(seOptions.includePartialProfiles !== undefined
+									? { options: { includePartialProfiles: seOptions.includePartialProfiles as boolean } }
+									: {}),
+							};
 							break;
 						}
 					case 'searchLookalikes': {
@@ -2578,7 +2728,7 @@ export class Lusha implements INodeType {
 								};
 							}
 
-							requestOptions.body = body;
+							requestOptions.body = withTableId(body, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 					}
@@ -2761,6 +2911,31 @@ export class Lusha implements INodeType {
 								}];
 							}
 
+							// Remaining documented company filter fields.
+							const companyAdvanced = this.getNodeParameter('companyAdvancedFilters', i, {}) as IDataObject;
+							if (Object.keys(companyAdvanced).length) {
+								applyCompanyAdvancedFilters(companyAdvanced, companiesInclude);
+							}
+
+							applyGeographicFilters(
+								{
+									companyGeo: this.getNodeParameter('companyGeographicDetails', i, {}) as IDataObject,
+									locationsZip: this.getNodeParameter('companyLocationsZipcodes', i, {}) as IDataObject,
+									hqZip: this.getNodeParameter('companyHeadquarterZipcodes', i, {}) as IDataObject,
+								},
+								null,
+								companiesInclude,
+							);
+
+							applyFundingRows(
+								{
+									ranges: this.getNodeParameter('companyFundingRanges', i, {}) as IDataObject,
+									rounds: this.getNodeParameter('companyFundingRounds', i, {}) as IDataObject,
+									names: this.getNodeParameter('companyFundingNames', i, {}) as IDataObject,
+								},
+								companiesInclude,
+							);
+
 							if (pruneEmptyFilterBlocks(companySearchBody.filters as IDataObject) === 0) {
 								throw new NodeOperationError(
 									this.getNode(),
@@ -2779,7 +2954,7 @@ export class Lusha implements INodeType {
 								};
 							}
 
-							requestOptions.body = companySearchBody;
+							requestOptions.body = withTableId(companySearchBody, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 
@@ -2822,10 +2997,10 @@ export class Lusha implements INodeType {
 
 							// V3CompaniesEnrichRequest.ids: strings, max 100.
 							const efsCompanyReveal = this.getNodeParameter('companyReveal', i, []) as string[];
-							requestOptions.body = {
+							requestOptions.body = withTableId({
 								ids: companiesIds.map((id) => String(id)).slice(0, 100),
 								...(efsCompanyReveal.length ? { reveal: efsCompanyReveal } : {}),
-							};
+							}, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 
@@ -2944,10 +3119,10 @@ export class Lusha implements INodeType {
 							requestOptions.headers['Content-Type'] = 'application/json';
 							delete requestOptions.qs;
 							const bulkCompanyReveal = this.getNodeParameter('companyReveal', i, []) as string[];
-							requestOptions.body = {
+							requestOptions.body = withTableId({
 								ids: bulkCompanyMatched.map((m) => m.id as string),
 								...(bulkCompanyReveal.length ? { reveal: bulkCompanyReveal } : {}),
-							};
+							}, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 					case 'searchAndEnrich': {
@@ -2993,7 +3168,13 @@ export class Lusha implements INodeType {
 								);
 							}
 
-							requestOptions.body = { companies: seCompanyList.slice(0, 100) };
+							const seCompanyOptions = this.getNodeParameter('searchAndEnrichOptions', i, {}) as IDataObject;
+							requestOptions.body = {
+								companies: seCompanyList.slice(0, 100),
+								...(seCompanyOptions.includePartialProfiles !== undefined
+									? { options: { includePartialProfiles: seCompanyOptions.includePartialProfiles as boolean } }
+									: {}),
+							};
 							break;
 						}
 					case 'searchLookalikes': {
@@ -3043,7 +3224,7 @@ export class Lusha implements INodeType {
 								};
 							}
 
-							requestOptions.body = companyBody;
+							requestOptions.body = withTableId(companyBody, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 					}

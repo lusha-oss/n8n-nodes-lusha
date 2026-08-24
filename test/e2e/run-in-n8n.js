@@ -192,6 +192,45 @@ const CASES = [
 		},
 	}],
 
+	['contact/advanced filters (full parity surface)', {
+		resource: 'contact', operation: 'prospectingContacts',
+		departments: ['Sales'],
+		contactAdvancedFilters: {
+			skills: 'Python, Salesforce',
+			scoreMin: 40, scoreMax: 90,
+			educationDegrees: 'BSc, MBA',
+			educationStartYearGte: 2005,
+			jobChangedAfterDate: '2025-01-01',
+		},
+		companyAdvancedFilters: {
+			keywords: 'fintech',
+			businessModel: ['B2B'],
+			companyType: ['Public Company'],
+			foundedYearMin: 2000, foundedYearMax: 2020,
+			intentTopicsOperator: 'all',
+			fundingIsIpo: true,
+		},
+		companyFundingRounds: { round: [{ coverage: 'last_round', round: 'series_b' }] },
+		contactGeographicDetails: { area: [{ country: 'United States', zipcode: '94105', distance: 25 }] },
+		companyLocationsZipcodes: { location: [{ countryIso2: 'US', zipcode: '94105' }] },
+		tableId: '',
+		searchAdditionalOptions: { page: 0, pageSize: 25 },
+	}, {
+		expectUrl: '/v3/contacts/prospecting',
+		check: (body) => {
+			const c = body.filters.contacts.include;
+			const k = body.filters.companies.include;
+			if (!c.score || c.score.minScore !== 40) return 'score must nest as {minScore,maxScore}';
+			if (!c.education || c.education.startYearGte !== 2005) return 'education must nest under one object';
+			if (!Array.isArray(c.geographicDetails)) return 'geographicDetails must be an array of objects';
+			if (JSON.stringify(k.foundedYear) !== '[{"min":2000,"max":2020}]') return 'foundedYear must be ONE element with min+max merged';
+			if (!k.funding || !k.funding.isIpo || !Array.isArray(k.funding.rounds)) return 'funding sub-filters must merge into one object';
+			if (!Array.isArray(k.locationsZipcodes)) return 'locationsZipcodes must be an array of objects';
+			if ('tableId' in body) return 'a blank tableId must be omitted';
+			return null;
+		},
+	}],
+
 	['contact/enrichFromSearch reveal=emails', {
 		resource: 'contact', operation: 'enrichFromSearch',
 		contactSelectionType: 'specific',
