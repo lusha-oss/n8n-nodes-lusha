@@ -209,6 +209,15 @@ function inScope(spec: FilterSpec, endpoint?: Endpoint): boolean {
 const splitList = (raw: unknown): string[] =>
 	String(raw).split(',').map((s) => s.trim()).filter((s) => s);
 
+/**
+ * Keys that would let a write escape the object it is aimed at and reach
+ * Object.prototype. Every `target` here comes from the SPEC tables above rather
+ * than from user input, so this is defence in depth — but `assign` walks a
+ * dotted path and writes into whatever it finds, and a spec entry added later
+ * should not be able to poison every object in the process.
+ */
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 /** Write `value` into `target`, creating nested objects and single-element arrays. */
 function assign(root: IDataObject, target: string, value: unknown): void {
 	const segments = target.split('.');
@@ -217,6 +226,7 @@ function assign(root: IDataObject, target: string, value: unknown): void {
 		const isLast = i === segments.length - 1;
 		const wrapInArray = segments[i].endsWith('[]');
 		const key = wrapInArray ? segments[i].slice(0, -2) : segments[i];
+		if (UNSAFE_KEYS.has(key)) return;
 
 		if (isLast) {
 			if (wrapInArray) {
@@ -432,11 +442,6 @@ const FUNDING_ROUNDS = [
 const FUNDING_NAMES = [
 	'angel', 'venture', 'private_equity', 'crowdfunding', 'grant', 'debt_financing', 'other',
 ].map((v) => ({ name: v.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), value: v }));
-
-const SHOW_PROSPECTING = {
-	resource: ['contact', 'company'],
-	operation: ['prospectingContacts', 'prospectingCompanies'],
-};
 
 // `funding` is absent from the companies/prospecting request schema, so these rows
 // belong to Prospect Contacts only -- offering them on Prospect Companies would

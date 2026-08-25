@@ -81,4 +81,5 @@ if [ -z "$ready" ]; then
 fi
 
 echo "==> driving every operation through n8n"
-N8N_URL="http://localhost:$N8N_PORT" MOCK_PORT="$MOCK_PORT" node "$HERE/run-in-n8n.js"
+N8N_URL="http://localhost:$N8N_PORT" MOCK_PORT="$MOCK_PORT" MOCK_CA="$CERT_DIR/mock-cert.pem" \
+  node "$HERE/run-in-n8n.js"

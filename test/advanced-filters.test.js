@@ -317,3 +317,36 @@ test('the panel offers each endpoint only the filters it accepts', () => {
 	assert.ok(onCompanies.includes('keywords') && onContacts.includes('keywords'));
 	assert.equal(onCompanies.length, onContacts.length - 5);
 });
+
+test('no filter target can reach Object.prototype', () => {
+	// assign() walks a dotted target and creates each level as it goes, which is
+	// the shape CodeQL flags as prototype-polluting. Targets come from the spec
+	// tables rather than user input, so the exposure is a spec entry added later,
+	// not a crafted request — this asserts the invariant where that mistake would
+	// be made. The runtime guard in assign() is the second line of defence.
+	const source = require('node:fs').readFileSync(
+		require('node:path').join(__dirname, '../src/nodes/Lusha/helpers/advanced-filters.ts'),
+		'utf8',
+	);
+	const targets = [...source.matchAll(/target:\s*'([^']+)'/g)].map((m) => m[1]);
+	assert.ok(targets.length > 40, `expected the full spec, found ${targets.length} targets`);
+
+	const unsafe = new Set(['__proto__', 'constructor', 'prototype']);
+	for (const target of targets) {
+		for (const segment of target.split('.')) {
+			const key = segment.endsWith('[]') ? segment.slice(0, -2) : segment;
+			assert.ok(!unsafe.has(key), `target "${target}" walks through the unsafe key "${key}"`);
+		}
+	}
+});
+
+test('building a request never touches Object.prototype', async () => {
+	await prospectContacts({
+		contactAdvancedFilters: { skills: 'Python', scoreMin: 40, educationDegrees: 'BSc' },
+		companyAdvancedFilters: { keywords: 'fintech', foundedYearMin: 2000, fundingIsIpo: true },
+		companyFundingRounds: { round: [{ coverage: 'last_round', round: 'seed' }] },
+	});
+	for (const key of ['polluted', 'skills', 'keywords', 'minScore']) {
+		assert.equal({}[key], undefined, `Object.prototype gained "${key}"`);
+	}
+});

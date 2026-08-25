@@ -20,6 +20,7 @@
  */
 
 const https = require('node:https');
+const fs = require('node:fs');
 
 const BASE = process.env.N8N_URL || 'http://localhost:5699';
 const MOCK_PORT = Number(process.env.MOCK_PORT || 5443);
@@ -49,10 +50,29 @@ async function api(path, opts = {}) {
  * Talks to the capture mock on localhost. Never to api.lusha.com: outside the
  * container that name resolves to the real Lusha API.
  */
+// The stand-in serves a certificate run.sh generates fresh for each run. Trust
+// exactly that certificate rather than switching verification off: the checks
+// below decide whether a release is good, so the harness should not be the one
+// place in the repo that accepts any certificate at all.
+const MOCK_CA = (() => {
+	const caPath = process.env.MOCK_CA;
+	if (!caPath) throw new Error('MOCK_CA is not set — run this through test/e2e/run.sh');
+	return fs.readFileSync(caPath);
+})();
+
 function mock(path) {
 	return new Promise((resolve, reject) => {
 		const req = https.request(
-			{ host: '127.0.0.1', port: MOCK_PORT, path, method: 'GET', rejectUnauthorized: false },
+			{
+				host: '127.0.0.1',
+				port: MOCK_PORT,
+				path,
+				method: 'GET',
+				ca: MOCK_CA,
+				// The certificate is issued for api.lusha.com, which is how the
+				// containers reach it; from the host we connect by address.
+				servername: 'api.lusha.com',
+			},
 			(res) => { let d = ''; res.on('data', (c) => (d += c)); res.on('end', () => resolve(d)); },
 		);
 		req.on('error', reject);
