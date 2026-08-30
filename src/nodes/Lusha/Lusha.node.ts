@@ -267,8 +267,10 @@ export class Lusha implements INodeType {
 				name: 'searchContactsLushaIds',
 				type: 'string',
 				default: '',
-				placeholder: '12345, 67890',
-				description: 'One or more Lusha contact IDs, comma-separated',
+				// Encrypted IDs (v1....) are the durable format; plain numeric IDs only
+				// work during a temporary legacy-transition window.
+				placeholder: 'v1.AbCdEfGh…, v1.IjKlMnOp…',
+				description: 'One or more Lusha contact IDs, comma-separated. Use the id values from a previous search result (results[].id).',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
@@ -309,7 +311,8 @@ export class Lusha implements INodeType {
 								name: 'id',
 								type: 'string',
 								default: '',
-								description: 'Lusha contact ID',
+								placeholder: 'v1.AbCdEfGh…',
+								description: 'Lusha contact ID, from a previous search result (results[].id)',
 							},
 							{
 								displayName: 'LinkedIn URL',
@@ -835,8 +838,10 @@ export class Lusha implements INodeType {
 						contactSelectionType: ['specific'],
 					},
 				},
-				description: 'Comma-separated list of contact IDs to enrich',
-				placeholder: '4389064654, 4389064624',
+				// Plain numeric IDs only work during a temporary legacy-transition
+				// window; encrypted IDs (v1....) are the real, durable format.
+				description: 'Comma-separated list of contact IDs to enrich. Use the id values from a previous search result (results[].id).',
+				placeholder: 'v1.AbCdEfGh…, v1.IjKlMnOp…',
 			},
 			{
 				displayName: 'Reveal',
@@ -978,7 +983,8 @@ export class Lusha implements INodeType {
 						name: 'excludeIds',
 						type: 'string',
 						default: '',
-						description: 'Comma-separated Lusha contact IDs to exclude from results',
+						placeholder: 'v1.AbCdEfGh…, v1.IjKlMnOp…',
+						description: 'Comma-separated Lusha contact IDs to exclude from results. Use the id values from a previous search result (results[].id).',
 					},
 				],
 			},
@@ -1172,7 +1178,7 @@ export class Lusha implements INodeType {
 							{ displayName: 'Last Name', name: 'lastName', type: 'string', default: '', placeholder: 'Doe' },
 							{ displayName: 'Company Name', name: 'companyName', type: 'string', default: '', placeholder: 'Acme Inc' },
 							{ displayName: 'Company Domain', name: 'companyDomain', type: 'string', default: '', placeholder: 'acme.com' },
-							{ displayName: 'Lusha ID', name: 'lushaId', type: 'string', default: '', description: 'Lusha entity ID from a previous search or enrich result' },
+							{ displayName: 'Lusha ID', name: 'lushaId', type: 'string', default: '', placeholder: 'v1.AbCdEfGh…', description: 'Lusha entity ID from a previous search or enrich result' },
 							{ displayName: 'Client Reference ID', name: 'clientReferenceId', type: 'string', default: '', description: 'Your own reference ID, returned in the response for correlation' },
 						],
 					},
@@ -1316,7 +1322,8 @@ export class Lusha implements INodeType {
 								name: 'id',
 								type: 'string',
 								default: '',
-								description: 'Lusha company ID',
+								placeholder: 'v1.AbCdEfGh…',
+								description: 'Lusha company ID, from a previous search result (results[].id)',
 							},
 							{
 								displayName: 'Company Name',
@@ -1828,7 +1835,7 @@ export class Lusha implements INodeType {
 						values: [
 							{ displayName: 'Domain', name: 'domain', type: 'string', default: '', placeholder: 'acme.com' },
 							{ displayName: 'Company Name', name: 'name', type: 'string', default: '', placeholder: 'Acme Inc' },
-							{ displayName: 'Lusha ID', name: 'lushaId', type: 'string', default: '', description: 'Lusha entity ID from a previous search or enrich result' },
+							{ displayName: 'Lusha ID', name: 'lushaId', type: 'string', default: '', placeholder: 'v1.AbCdEfGh…', description: 'Lusha entity ID from a previous search or enrich result' },
 							{ displayName: 'Client Reference ID', name: 'clientReferenceId', type: 'string', default: '', description: 'Your own reference ID, returned in the response for correlation' },
 						],
 					},
