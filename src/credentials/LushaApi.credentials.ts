@@ -23,7 +23,7 @@ export class LushaApi implements ICredentialType {
             description: 'Your Lusha API key from the Lusha dashboard',
         },
     ];
-    
+
     authenticate: IAuthenticateGeneric = {
         type: 'generic',
         properties: {
@@ -32,14 +32,16 @@ export class LushaApi implements ICredentialType {
             },
         },
     };
-    
+
+    // Validate the key against a non-billable endpoint. GET /v3/account/usage
+    // returns credits / rate limits / plan and costs no credits, unlike
+    // POST /v3/contacts/search-and-enrich which charges api_search plus a
+    // per-revealed-field fee on every credential test.
     test: ICredentialTestRequest = {
         request: {
             baseURL: 'https://api.lusha.com',
-            url: '/v3/contacts/search-and-enrich',
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: { contacts: [{ email: 'test@lusha.com' }], reveal: [] },
+            url: '/v3/account/usage',
+            method: 'GET',
         },
     };
 }

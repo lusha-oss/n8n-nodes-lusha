@@ -1,6 +1,6 @@
 {
   "name": "@lusha-org/n8n-nodes-lusha",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Complete Lusha API integration for n8n with contact enrichment, company enrichment, and prospecting capabilities",
   "keywords": [
     "n8n-community-node-package",
@@ -30,7 +30,12 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc && gulp build:icons",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "pretest": "npm run build",
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:e2e": "./test/e2e/run.sh"
   },
   "files": [
     "dist"
@@ -46,6 +51,9 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
+    "@typescript-eslint/parser": "7.18.0",
+    "eslint": "8.57.1",
+    "eslint-plugin-n8n-nodes-base": "^1.16.7",
     "gulp": "^5.0.0",
     "typescript": "^5.9.3"
   },

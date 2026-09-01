@@ -1,12 +1,116 @@
 import {
 	IExecuteFunctions,
+	ILoadOptionsFunctions,
 	INodeExecutionData,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 	IHttpRequestOptions,
 	IDataObject,
 	NodeConnectionTypes,
+	NodeOperationError,
 } from 'n8n-workflow';
+import {
+	getMainIndustryOptions,
+	getSubIndustryOptions,
+	getContactCountryOptions,
+	getCompanyCountryOptions,
+	getDepartmentOptions,
+	getSeniorityOptions,
+} from './helpers/options';
+import {
+	contactAdvancedFilterOptions,
+	companyAdvancedFilterOptions,
+	applyContactAdvancedFilters,
+	applyCompanyAdvancedFilters,
+	geographicFilterProperties,
+	applyGeographicFilters,
+	fundingRowProperties,
+	applyFundingRows,
+} from './helpers/advanced-filters';
+
+/**
+ * Fetches one of Lusha's filter-discovery endpoints for a loadOptions dropdown.
+ * Returns null on any failure — a missing credential or an unreachable catalog must
+ * degrade to the generated static list rather than leaving the editor with an empty
+ * dropdown and an error toast.
+ */
+async function fetchCatalog(ctx: ILoadOptionsFunctions, url: string): Promise<IDataObject[] | null> {
+	try {
+		const res = (await ctx.helpers.httpRequestWithAuthentication.call(ctx, 'lushaApi', {
+			baseURL: 'https://api.lusha.com',
+			url,
+			method: 'GET',
+			headers: { Accept: 'application/json', prtnr: 'n8n_connector-prod' },
+			json: true,
+		})) as IDataObject;
+		const rows = Array.isArray(res)
+			? res
+			: ((res?.values ?? res?.data ?? res?.results) as IDataObject[] | undefined);
+		return Array.isArray(rows) && rows.length ? rows : null;
+	} catch (e) {
+		return null;
+	}
+}
+
+/** Our own casing for the seniority IDs, since the catalog returns lowercase names. */
+const SENIORITY_LABELS: Record<string, string> = Object.fromEntries(
+	getSeniorityOptions().map((o) => [String(o.value), String(o.name)]),
+);
+
+/** Fallback prettifier for a catalog label we do not already have casing for. */
+function titleCaseLabel(raw: string): string {
+	return raw
+		.split(/([\s-])/)
+		.map((part) => (/^[\s-]$/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+		.join('');
+}
+
+/**
+ * Optional tableId, accepted by enrich, prospecting and lookalike requests: results
+ * are additionally persisted into an existing Lusha table. Omitted when blank.
+ */
+function withTableId(body: IDataObject, tableId: string): IDataObject {
+	if (tableId) body.tableId = tableId;
+	return body;
+}
+
+/** V3PaginationRequest.size accepts 10–100 (default 25). */
+function clampPageSize(size: number): number {
+	if (!Number.isFinite(size)) return 25;
+	return Math.min(100, Math.max(10, Math.floor(size)));
+}
+
+/** V3PaginationRequest.page accepts 0–1000. */
+function clampPage(page: number): number {
+	if (!Number.isFinite(page)) return 0;
+	return Math.min(1000, Math.max(0, Math.floor(page)));
+}
+
+/**
+ * Drop `filters.<entity>.include` blocks that ended up empty so we never send
+ * `{ include: {} }`, which carries no filter but still counts as a filter block.
+ * Returns the number of populated include blocks left behind.
+ */
+function pruneEmptyFilterBlocks(filters: IDataObject): number {
+	let populated = 0;
+	for (const entity of Object.keys(filters)) {
+		const block = filters[entity] as IDataObject | undefined;
+		if (!block || typeof block !== 'object') {
+			delete filters[entity];
+			continue;
+		}
+		for (const direction of ['include', 'exclude']) {
+			const criteria = block[direction] as IDataObject | undefined;
+			if (criteria && typeof criteria === 'object' && Object.keys(criteria).length === 0) {
+				delete block[direction];
+			}
+		}
+		if (Object.keys(block).length === 0) delete filters[entity];
+		else populated += 1;
+	}
+	return populated;
+}
 
 export class Lusha implements INodeType {
 	description: INodeTypeDescription = {
@@ -163,8 +267,10 @@ export class Lusha implements INodeType {
 				name: 'searchContactsLushaIds',
 				type: 'string',
 				default: '',
-				placeholder: '12345, 67890',
-				description: 'One or more Lusha contact IDs, comma-separated',
+				// Encrypted IDs (v1....) are the durable format; plain numeric IDs only
+				// work during a temporary legacy-transition window.
+				placeholder: 'v1.AbCdEfGh…, v1.IjKlMnOp…',
+				description: 'One or more Lusha contact IDs, comma-separated. Use the id values from a previous search result (results[].id).',
 				displayOptions: {
 					show: {
 						resource: ['contact'],
@@ -205,7 +311,8 @@ export class Lusha implements INodeType {
 								name: 'id',
 								type: 'string',
 								default: '',
-								description: 'Lusha contact ID',
+								placeholder: 'v1.AbCdEfGh…',
+								description: 'Lusha contact ID, from a previous search result (results[].id)',
 							},
 							{
 								displayName: 'LinkedIn URL',
@@ -325,24 +432,7 @@ export class Lusha implements INodeType {
 				displayName: 'Departments',
 				name: 'departments',
 				type: 'multiOptions',
-				options: [
-					{ name: 'Business Development', value: 'Business Development' },
-					{ name: 'Consulting', value: 'Consulting' },
-					{ name: 'Customer Service', value: 'Customer Service' },
-					{ name: 'Engineering & Technical', value: 'Engineering & Technical' },
-					{ name: 'Finance', value: 'Finance' },
-					{ name: 'General Management', value: 'General Management' },
-					{ name: 'Health Care & Medical', value: 'Health Care & Medical' },
-					{ name: 'Human Resources', value: 'Human Resources' },
-					{ name: 'Information Technology', value: 'Information Technology' },
-					{ name: 'Legal', value: 'Legal' },
-					{ name: 'Marketing', value: 'Marketing' },
-					{ name: 'Operations', value: 'Operations' },
-					{ name: 'Other', value: 'Other' },
-					{ name: 'Product', value: 'Product' },
-					{ name: 'Research & Analytics', value: 'Research & Analytics' },
-					{ name: 'Sales', value: 'Sales' },
-				],
+				typeOptions: { loadOptionsMethod: 'getDepartments' },
 				default: [],
 				displayOptions: {
 					show: {
@@ -355,18 +445,7 @@ export class Lusha implements INodeType {
 				displayName: 'Seniorities',
 				name: 'seniorities',
 				type: 'multiOptions',
-				options: [
-					{ name: 'Founder', value: 10 },
-					{ name: 'C-Suite', value: 9 },
-					{ name: 'Vice President', value: 8 },
-					{ name: 'Partner', value: 7 },
-					{ name: 'Director', value: 6 },
-					{ name: 'Manager', value: 5 },
-					{ name: 'Senior', value: 4 },
-					{ name: 'Entry', value: 3 },
-					{ name: 'Intern', value: 2 },
-					{ name: 'Other', value: 1 },
-				],
+				typeOptions: { loadOptionsMethod: 'getSeniorities' },
 				default: [],
 				displayOptions: {
 					show: {
@@ -379,68 +458,7 @@ export class Lusha implements INodeType {
 				displayName: 'Countries',
 				name: 'countries',
 				type: 'multiOptions',
-				options: [
-					{ name: 'United States', value: 'US' },
-					{ name: 'India', value: 'IN' },
-					{ name: 'United Kingdom', value: 'GB' },
-					{ name: 'Brazil', value: 'BR' },
-					{ name: 'Canada', value: 'CA' },
-					{ name: 'Australia', value: 'AU' },
-					{ name: 'France', value: 'FR' },
-					{ name: 'Germany', value: 'DE' },
-					{ name: 'Netherlands', value: 'NL' },
-					{ name: 'Italy', value: 'IT' },
-					{ name: 'South Africa', value: 'ZA' },
-					{ name: 'Mexico', value: 'MX' },
-					{ name: 'Turkey', value: 'TR' },
-					{ name: 'Sweden', value: 'SE' },
-					{ name: 'China', value: 'CN' },
-					{ name: 'Indonesia', value: 'ID' },
-					{ name: 'Belgium', value: 'BE' },
-					{ name: 'Spain', value: 'ES' },
-					{ name: 'United Arab Emirates', value: 'AE' },
-					{ name: 'Argentina', value: 'AR' },
-					{ name: 'Switzerland', value: 'CH' },
-					{ name: 'Singapore', value: 'SG' },
-					{ name: 'Saudi Arabia', value: 'SA' },
-					{ name: 'Ireland', value: 'IE' },
-					{ name: 'Colombia', value: 'CO' },
-					{ name: 'Chile', value: 'CL' },
-					{ name: 'Malaysia', value: 'MY' },
-					{ name: 'Egypt', value: 'EG' },
-					{ name: 'Nigeria', value: 'NG' },
-					{ name: 'Japan', value: 'JP' },
-					{ name: 'Hong Kong', value: 'HK' },
-					{ name: 'Finland', value: 'FI' },
-					{ name: 'Denmark', value: 'DK' },
-					{ name: 'Taiwan', value: 'TW' },
-					{ name: 'Bangladesh', value: 'BD' },
-					{ name: 'Austria', value: 'AT' },
-					{ name: 'Czech Republic', value: 'CZ' },
-					{ name: 'Peru', value: 'PE' },
-					{ name: 'Kenya', value: 'KE' },
-					{ name: 'Vietnam', value: 'VN' },
-					{ name: 'Poland', value: 'PL' },
-					{ name: 'Ukraine', value: 'UA' },
-					{ name: 'Thailand', value: 'TH' },
-					{ name: 'South Korea', value: 'KR' },
-					{ name: 'Iran', value: 'IR' },
-					{ name: 'Morocco', value: 'MA' },
-					{ name: 'Venezuela', value: 'VE' },
-					{ name: 'Hungary', value: 'HU' },
-					{ name: 'Sri Lanka', value: 'LK' },
-					{ name: 'New Zealand', value: 'NZ' },
-					{ name: 'Portugal', value: 'PT' },
-					{ name: 'Greece', value: 'GR' },
-					{ name: 'Romania', value: 'RO' },
-					{ name: 'Norway', value: 'NO' },
-					{ name: 'Russia', value: 'RU' },
-					{ name: 'Philippines', value: 'PH' },
-					{ name: 'Israel', value: 'IL' },
-					{ name: 'Qatar', value: 'QA' },
-					{ name: 'Kuwait', value: 'KW' },
-					{ name: 'Pakistan', value: 'PK' },
-				],
+				typeOptions: { loadOptionsMethod: 'getContactCountries' },
 				default: [],
 				displayOptions: {
 					show: {
@@ -449,6 +467,63 @@ export class Lusha implements INodeType {
 					},
 				},
 				description: 'Filter contacts by country (ISO-2 codes sent to API)',
+			},
+			// Contact-side filters on Prospect Companies: find companies that employ
+			// certain kinds of people. V3ContactsOnCompanySearchFilters is a restricted
+			// subset of the full contact filter set -- only these six fields.
+			{
+				displayName: 'Contact Filters',
+				name: 'companyProspectContactFilters',
+				type: 'collection',
+				placeholder: 'Add filter',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['prospectingCompanies'],
+					},
+				},
+				description: 'Narrow companies by attributes of the people who work there',
+				options: [
+					{
+						displayName: 'Job Titles',
+						name: 'jobTitles',
+						type: 'string',
+						default: '',
+						description: 'Comma-separated, e.g., CEO, CTO, Manager',
+						placeholder: 'CEO, CTO, Manager',
+					},
+					{
+						displayName: 'Departments',
+						name: 'departments',
+						type: 'multiOptions',
+						typeOptions: { loadOptionsMethod: 'getDepartments' },
+						default: [],
+					},
+					{
+						displayName: 'Seniorities',
+						name: 'seniorities',
+						type: 'multiOptions',
+						typeOptions: { loadOptionsMethod: 'getSeniorities' },
+						default: [],
+					},
+					{
+						displayName: 'Skills',
+						name: 'skills',
+						type: 'string',
+						default: '',
+						description: 'Comma-separated',
+						placeholder: 'Python, Salesforce',
+					},
+					{
+						displayName: 'Existing Data Points',
+						name: 'existingDataPoints',
+						type: 'string',
+						default: '',
+						description: 'Comma-separated. No fixed catalog for this field -- e.g. work_email, phone.',
+						placeholder: 'work_email, phone',
+					},
+				],
 			},
 			// Company filters for contact search
 			{
@@ -492,14 +567,31 @@ export class Lusha implements INodeType {
             displayName: 'Existing Data Points',
             name: 'existingDataPoints',
             type: 'multiOptions',
+            // The filters catalog returns an empty list for this filter and the API
+            // does not reject unknown values — it just matches nothing — so these
+            // were confirmed empirically against the live API by checking that each
+            // one narrows the result total rather than zeroing it. Note that the
+            // OpenAPI description's own `work_phone` example is NOT a real value.
             options: [
+                { name: 'Email (Any)', value: 'email' },
                 { name: 'Work Email', value: 'work_email' },
                 { name: 'Phone', value: 'phone' },
                 { name: 'Mobile Phone', value: 'mobile_phone' },
                 { name: 'Direct Phone', value: 'direct_phone' },
             ],
             default: [],
-            description: 'Filter contacts that have these data points',
+            description: 'Only return contacts that already have these data points. Combine several with the matching mode below.',
+        },
+        {
+            displayName: 'Existing Data Points Match',
+            name: 'existingDataPointsCondition',
+            type: 'options',
+            options: [
+                { name: 'Any of them (OR)', value: 'or' },
+                { name: 'All of them (AND)', value: 'and' },
+            ],
+            default: 'or',
+            description: 'How to combine multiple Existing Data Points. Only sent when at least one data point is selected.',
         },
 			{
 				displayName: 'Company Employee Count Min',
@@ -579,28 +671,7 @@ export class Lusha implements INodeType {
 				displayName: 'Company Main Industries',
 				name: 'contactSearchCompanyMainIndustries',
 				type: 'multiOptions',
-				options: [
-					{ name: 'Hospitality', value: '1' },
-					{ name: 'Administrative & Support Services', value: '2' },
-					{ name: 'Construction', value: '3' },
-					{ name: 'Consumer Services', value: '4' },
-					{ name: 'Organizations', value: '5' },
-					{ name: 'Education', value: '6' },
-					{ name: 'Entertainment', value: '7' },
-					{ name: 'Farming, Ranching, Forestry', value: '8' },
-					{ name: 'Finance', value: '9' },
-					{ name: 'Government', value: '10' },
-					{ name: 'Hospitals, Healthcare & Clinics', value: '11' },
-					{ name: 'Manufacturing', value: '12' },
-					{ name: 'Oil, Gas & Mining', value: '13' },
-					{ name: 'Business Services', value: '14' },
-					{ name: 'Real Estate', value: '15' },
-					{ name: 'Retail', value: '16' },
-					{ name: 'Technology, Information & Media', value: '17' },
-					{ name: 'Transportation, Logistics, Supply Chain & Storage', value: '18' },
-					{ name: 'Utilities', value: '19' },
-					{ name: 'Wholesale', value: '20' },
-				],
+				typeOptions: { loadOptionsMethod: 'getMainIndustries' },
 				default: [],
 				description: 'Filter by company main industries',
 			},
@@ -608,165 +679,7 @@ export class Lusha implements INodeType {
 				displayName: 'Company Sub-Industries',
 				name: 'contactSearchCompanySubIndustries',
 				type: 'multiOptions',
-				options: [
-					// Hospitality
-					{ name: 'Restaurants', value: '2' },
-					{ name: 'Food & Beverage Services', value: '1' },
-					{ name: 'Hotels & Motels', value: '3' },
-					// Administrative & Support Services
-					{ name: 'Administrative & Support Services', value: '4' },
-					{ name: 'Events Services', value: '5' },
-					{ name: 'Facilities Services', value: '6' },
-					{ name: 'Fundraising', value: '7' },
-					{ name: 'Security & Investigations', value: '8' },
-					{ name: 'Staffing & Recruiting', value: '9' },
-					{ name: 'Translation & Localization', value: '10' },
-					{ name: 'Travel Arrangements', value: '11' },
-					{ name: 'Writing & Editing', value: '12' },
-					// Construction
-					{ name: 'Construction', value: '13' },
-					{ name: 'Building Construction', value: '15' },
-					{ name: 'Civil Engineering', value: '16' },
-					// Consumer Services
-					{ name: 'Personal Care Services', value: '17' },
-					{ name: 'Philanthropic Fundraising Services', value: '18' },
-					{ name: 'Repair & Maintenance', value: '19' },
-					// Organizations
-					{ name: 'Political Organizations', value: '20' },
-					{ name: 'Civic & Social Organizations', value: '21' },
-					{ name: 'Religious Institutions', value: '22' },
-					// Education
-					{ name: 'E-Learning Providers', value: '23' },
-					{ name: 'Higher Education', value: '24' },
-					{ name: 'Primary & Secondary Education', value: '25' },
-					{ name: 'Training', value: '26' },
-					{ name: 'Schools', value: '27' },
-					// Entertainment
-					{ name: 'Entertainment Providers', value: '28' },
-					{ name: 'Museums, Historical Sites, & Zoos', value: '29' },
-					{ name: 'Musicians, Artists & Writers', value: '30' },
-					{ name: 'Performing Arts', value: '31' },
-					{ name: 'Sports', value: '32' },
-					{ name: 'Recreational Facilities', value: '33' },
-					{ name: 'Gambling Facilities & Casinos', value: '34' },
-					{ name: 'Wellness & Fitness Services', value: '35' },
-					// Farming
-					{ name: 'Farming, Ranching, Forestry', value: '36' },
-					// Finance
-					{ name: 'Financial Services', value: '37' },
-					{ name: 'Capital Markets', value: '38' },
-					{ name: 'Investment Banking', value: '39' },
-					{ name: 'Investment Management', value: '40' },
-					{ name: 'Venture Capital & Private Equity', value: '41' },
-					{ name: 'Banking', value: '42' },
-					{ name: 'International Trade & Development', value: '43' },
-					{ name: 'Insurance', value: '44' },
-					// Government
-					{ name: 'Government Administration', value: '45' },
-					{ name: 'Administration of Justice', value: '46' },
-					{ name: 'Fire Protection', value: '47' },
-					{ name: 'Law Enforcement', value: '48' },
-					{ name: 'Public Safety', value: '49' },
-					{ name: 'Education Administration Programs', value: '50' },
-					{ name: 'Health & Human Services', value: '51' },
-					{ name: 'Housing & Community Development', value: '52' },
-					{ name: 'Military', value: '53' },
-					{ name: 'International Affairs', value: '54' },
-					{ name: 'Public Policy Offices', value: '55' },
-					{ name: 'Executive Offices', value: '56' },
-					{ name: 'Legislative Offices', value: '57' },
-					{ name: 'Government Relations Services', value: '58' },
-					// Healthcare
-					{ name: 'Hospitals & Healthcare', value: '59' },
-					{ name: 'Community Services', value: '60' },
-					{ name: 'Individual & Family Services', value: '61' },
-					{ name: 'Alternative Medicine', value: '62' },
-					{ name: 'Home Health Care Services', value: '63' },
-					{ name: 'Mental Health Care', value: '64' },
-					{ name: 'Medical Practices', value: '65' },
-					{ name: 'Nursing Homes & Residential Care', value: '66' },
-					// Manufacturing
-					{ name: 'Apparel', value: '67' },
-					{ name: 'Appliances, Electrical, & Electronics', value: '68' },
-					{ name: 'Chemicals & Related Products', value: '69' },
-					{ name: 'Personal Care Products', value: '70' },
-					{ name: 'Pharmaceuticals', value: '71' },
-					{ name: 'Computer Equipment & Electronics', value: '72' },
-					{ name: 'Computer Hardware', value: '73' },
-					{ name: 'Semiconductor & Renewable Energy', value: '74' },
-					{ name: 'Fabricated Metal Products', value: '75' },
-					{ name: 'Food & Beverage', value: '76' },
-					{ name: 'Furniture', value: '77' },
-					{ name: 'Glass, Ceramics, Clay & Concrete', value: '78' },
-					{ name: 'Industrial Machinery & Equipment', value: '79' },
-					{ name: 'Medical Equipment', value: '80' },
-					{ name: 'Paper & Forest Product', value: '81' },
-					{ name: 'Plastics & Rubber Products', value: '82' },
-					{ name: 'Sporting Goods', value: '83' },
-					{ name: 'Textile', value: '84' },
-					{ name: 'Tobacco', value: '85' },
-					{ name: 'Aerospace & Defense', value: '86' },
-					{ name: 'Motor Vehicles', value: '87' },
-					{ name: 'Railroad Equipment', value: '88' },
-					{ name: 'Shipbuilding', value: '89' },
-					// Oil, Gas & Mining
-					{ name: 'Mining', value: '90' },
-					{ name: 'Oil & Gas', value: '91' },
-					// Business Services
-					{ name: 'Accounting & Services', value: '92' },
-					{ name: 'Advertising & Marketing Services', value: '93' },
-					{ name: 'Public Relations & Communications', value: '94' },
-					{ name: 'Market Research Services', value: '95' },
-					{ name: 'Architecture & Planning', value: '96' },
-					{ name: 'Business Consulting & Services', value: '97' },
-					{ name: 'Environmental Services', value: '98' },
-					{ name: 'Human Resources Services', value: '99' },
-					{ name: 'Outsourcing & Offshoring Consulting', value: '100' },
-					{ name: 'Design Services', value: '101' },
-					{ name: 'IT Consulting & IT Services', value: '103' },
-					{ name: 'Law Firms & Legal Services', value: '104' },
-					{ name: 'Photography Services', value: '105' },
-					{ name: 'Biotechnology Research Services', value: '106' },
-					{ name: 'Research Services', value: '107' },
-					{ name: 'Veterinary Services', value: '108' },
-					// Real Estate
-					{ name: 'Real Estate', value: '109' },
-					// Retail
-					{ name: 'Retail Luxury Goods & Jewelry', value: '110' },
-					{ name: 'Food & Beverage Retail', value: '111' },
-					{ name: 'Grocery Retail', value: '112' },
-					{ name: 'Retail Apparel & Fashion', value: '113' },
-					{ name: 'Retail Office Equipment', value: '114' },
-					{ name: 'Retail', value: '115' },
-					// Technology, Information & Media
-					{ name: 'Book & Newspaper Publishing', value: '116' },
-					{ name: 'Broadcast Media Production & Distribution', value: '117' },
-					{ name: 'Movies, Videos & Sound', value: '118' },
-					{ name: 'Telecommunications', value: '119' },
-					{ name: 'Data Infrastructure & Analytics', value: '120' },
-					{ name: 'Blockchain Services', value: '121' },
-					{ name: 'Information Services', value: '122' },
-					{ name: 'Internet Publishing', value: '123' },
-					{ name: 'Internet Shop & Marketplace', value: '124' },
-					{ name: 'Social Networking Platforms', value: '125' },
-					{ name: 'Computer & Mobile Games', value: '126' },
-					{ name: 'Computer Networking Products', value: '127' },
-					{ name: 'Computer & Network Security Services', value: '128' },
-					{ name: 'Software Development', value: '129' },
-					// Transportation
-					{ name: 'Airlines, Airports & Air Services', value: '130' },
-					{ name: 'Freight & Package Transportation', value: '131' },
-					{ name: 'Ground Passenger Transportation', value: '132' },
-					{ name: 'Maritime Transportation', value: '133' },
-					{ name: 'Truck Transportation', value: '134' },
-					{ name: 'Warehousing & Storage', value: '135' },
-					// Utilities
-					{ name: 'Utilities', value: '136' },
-					// Wholesale
-					{ name: 'Wholesale', value: '137' },
-					{ name: 'Wholesale Building Materials', value: '138' },
-					{ name: 'Wholesale Import & Export', value: '139' },
-				],
+				typeOptions: { loadOptionsMethod: 'getSubIndustries' },
 				default: [],
 				description: 'Filter by company sub-industries',
 			},
@@ -774,70 +687,9 @@ export class Lusha implements INodeType {
 				displayName: 'Company Countries',
 				name: 'contactSearchCompanyCountries',
 				type: 'multiOptions',
-				options: [
-					{ name: 'United States', value: 'US' },
-					{ name: 'India', value: 'IN' },
-					{ name: 'United Kingdom', value: 'GB' },
-					{ name: 'Brazil', value: 'BR' },
-					{ name: 'Canada', value: 'CA' },
-					{ name: 'Australia', value: 'AU' },
-					{ name: 'France', value: 'FR' },
-					{ name: 'Germany', value: 'DE' },
-					{ name: 'Netherlands', value: 'NL' },
-					{ name: 'Italy', value: 'IT' },
-					{ name: 'South Africa', value: 'ZA' },
-					{ name: 'Mexico', value: 'MX' },
-					{ name: 'Turkey', value: 'TR' },
-					{ name: 'Sweden', value: 'SE' },
-					{ name: 'China', value: 'CN' },
-					{ name: 'Indonesia', value: 'ID' },
-					{ name: 'Belgium', value: 'BE' },
-					{ name: 'Spain', value: 'ES' },
-					{ name: 'United Arab Emirates', value: 'AE' },
-					{ name: 'Argentina', value: 'AR' },
-					{ name: 'Switzerland', value: 'CH' },
-					{ name: 'Singapore', value: 'SG' },
-					{ name: 'Saudi Arabia', value: 'SA' },
-					{ name: 'Ireland', value: 'IE' },
-					{ name: 'Colombia', value: 'CO' },
-					{ name: 'Chile', value: 'CL' },
-					{ name: 'Malaysia', value: 'MY' },
-					{ name: 'Egypt', value: 'EG' },
-					{ name: 'Nigeria', value: 'NG' },
-					{ name: 'Japan', value: 'JP' },
-					{ name: 'Hong Kong', value: 'HK' },
-					{ name: 'Finland', value: 'FI' },
-					{ name: 'Denmark', value: 'DK' },
-					{ name: 'Taiwan', value: 'TW' },
-					{ name: 'Bangladesh', value: 'BD' },
-					{ name: 'Austria', value: 'AT' },
-					{ name: 'Czech Republic', value: 'CZ' },
-					{ name: 'Peru', value: 'PE' },
-					{ name: 'Kenya', value: 'KE' },
-					{ name: 'Vietnam', value: 'VN' },
-					{ name: 'Poland', value: 'PL' },
-					{ name: 'Ukraine', value: 'UA' },
-					{ name: 'Thailand', value: 'TH' },
-					{ name: 'South Korea', value: 'KR' },
-					{ name: 'Iran', value: 'IR' },
-					{ name: 'Morocco', value: 'MA' },
-					{ name: 'Venezuela', value: 'VE' },
-					{ name: 'Hungary', value: 'HU' },
-					{ name: 'Sri Lanka', value: 'LK' },
-					{ name: 'New Zealand', value: 'NZ' },
-					{ name: 'Portugal', value: 'PT' },
-					{ name: 'Greece', value: 'GR' },
-					{ name: 'Romania', value: 'RO' },
-					{ name: 'Norway', value: 'NO' },
-					{ name: 'Russia', value: 'RU' },
-					{ name: 'Philippines', value: 'PH' },
-					{ name: 'Israel', value: 'IL' },
-					{ name: 'Qatar', value: 'QA' },
-					{ name: 'Kuwait', value: 'KW' },
-					{ name: 'Pakistan', value: 'PK' },
-				],
+				typeOptions: { loadOptionsMethod: 'getCompanyCountries' },
 				default: [],
-				description: 'Filter contacts by company country (ISO-2 codes sent to API)',
+				description: 'Filter contacts by company country (full country name sent to API)',
 			},
 			{
 				displayName: 'Company States',
@@ -889,23 +741,62 @@ export class Lusha implements INodeType {
 			},
 			]
 		},
-
-			// ===== CONTACT ENRICH FROM SEARCH FIELDS =====
+			// The remaining V3ContactFilterCriteria and V3CompanyFilterCriteria fields.
+			// Split into their own collections rather than added to Search Filters above:
+			// that collection is already 18 entries, and every existing parameter name
+			// there is preserved so saved workflows keep working.
 			{
-				displayName: 'Request ID',
-				name: 'requestId',
-				type: 'string',
-				default: '={{ $json.requestId }}',
-				required: true,
+				displayName: 'Contact Filters (Advanced)',
+				name: 'contactAdvancedFilters',
+				type: 'collection',
+				placeholder: 'Add contact filter',
+				default: {},
 				displayOptions: {
 					show: {
 						resource: ['contact'],
-						operation: ['enrichFromSearch'],
+						operation: ['prospectingContacts'],
 					},
 				},
-				description: 'The request ID from a previous search operation (auto-populated if connected to a search node)',
-				hint: 'Connect this node to a Search Contacts node to auto-populate',
+				options: contactAdvancedFilterOptions(),
 			},
+			// Two declarations of the same parameter, one per prospecting endpoint,
+			// because the endpoints do not accept the same company filters: `funding`
+			// and `industriesLabels` are contacts/prospecting only. Sharing one option
+			// list would offer fields that come back as a 400 on the other action.
+			{
+				displayName: 'Company Filters (Advanced)',
+				name: 'companyAdvancedFilters',
+				type: 'collection',
+				placeholder: 'Add company filter',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['prospectingContacts'],
+					},
+				},
+				options: companyAdvancedFilterOptions('contactsProspecting'),
+			},
+			{
+				displayName: 'Company Filters (Advanced)',
+				name: 'companyAdvancedFilters',
+				type: 'collection',
+				placeholder: 'Add company filter',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						operation: ['prospectingCompanies'],
+					},
+				},
+				options: companyAdvancedFilterOptions('companiesProspecting'),
+			},
+			...geographicFilterProperties(),
+			...fundingRowProperties(),
+
+			// ===== CONTACT ENRICH FROM SEARCH FIELDS =====
+			// Note: POST /v3/contacts/enrich takes only ids/reveal/waterfallEnabled/tableId.
+			// It does NOT accept a requestId, so no such field is collected here.
 			{
 				displayName: 'Contact Selection',
 				name: 'contactSelectionType',
@@ -947,8 +838,27 @@ export class Lusha implements INodeType {
 						contactSelectionType: ['specific'],
 					},
 				},
-				description: 'Comma-separated list of contact IDs to enrich',
-				placeholder: 'contact_123, contact_456',
+				// Plain numeric IDs only work during a temporary legacy-transition
+				// window; encrypted IDs (v1....) are the real, durable format.
+				description: 'Comma-separated list of contact IDs to enrich. Use the id values from a previous search result (results[].id).',
+				placeholder: 'v1.AbCdEfGh…, v1.IjKlMnOp…',
+			},
+			{
+				displayName: 'Reveal',
+				name: 'enrichFromSearchReveal',
+				type: 'multiOptions',
+				options: [
+					{ name: 'Emails', value: 'emails' },
+					{ name: 'Phone Numbers', value: 'phones' },
+				],
+				default: ['emails', 'phones'],
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichFromSearch'],
+					},
+				},
+				description: 'Which contact data to unlock. Billing applies per revealed field, so narrow this to what you actually need.',
 			},
 
 			// ===== CONTACT LOOKALIKE FIELDS =====
@@ -1028,12 +938,12 @@ export class Lusha implements INodeType {
 				displayName: 'Limit',
 				name: 'contactLookalikeLimit',
 				type: 'number',
-				typeOptions: { minValue: 1, maxValue: 50 },
+				typeOptions: { minValue: 1, maxValue: 100 },
 				default: 25,
 				displayOptions: {
 					show: { resource: ['contact'], operation: ['searchLookalikes'] },
 				},
-				description: 'Number of lookalike results to return (1–50)',
+				description: 'Number of lookalike results to return (1–100)',
 			},
 			{
 				displayName: 'Additional Options',
@@ -1059,6 +969,22 @@ export class Lusha implements INodeType {
 						default: '',
 						placeholder: 'a@b.com, c@d.com',
 						description: 'Comma-separated emails to exclude from results (e.g., existing customers)',
+					},
+					{
+						displayName: 'Exclude LinkedIn URLs',
+						name: 'excludeLinkedinUrls',
+						type: 'string',
+						default: '',
+						placeholder: 'https://www.linkedin.com/in/janedoe',
+						description: 'Comma-separated LinkedIn URLs to exclude from results',
+					},
+					{
+						displayName: 'Exclude Lusha Contact IDs',
+						name: 'excludeIds',
+						type: 'string',
+						default: '',
+						placeholder: 'v1.AbCdEfGh…, v1.IjKlMnOp…',
+						description: 'Comma-separated Lusha contact IDs to exclude from results. Use the id values from a previous search result (results[].id).',
 					},
 				],
 			},
@@ -1104,23 +1030,14 @@ export class Lusha implements INodeType {
 					show: {
 						resource: ['contact'],
 						operation: ['enrichBulk'],
-						bulkType: ['simple'],
+						// Also shown for emailList: execute() reads these options in that
+						// mode too, so hiding them there silently forced emails+phones.
+						bulkType: ['emailList', 'simple'],
 					},
 				},
 				options: [
-					{
-						displayName: 'Filter By',
-						name: 'bulkFilterBy',
-						type: 'options',
-						options: [
-							{ name: 'No Filter', value: '' },
-							{ name: 'Email Addresses', value: 'emailAddresses' },
-							{ name: 'Phone Numbers', value: 'phoneNumbers' },
-						],
-						default: '',
-						description:
-							'Filter contacts based on the presence of email addresses or phone numbers',
-					},
+					// No 'Filter By' option: filterBy was a v2 search parameter and is not
+					// part of V3ContactsSearchRequest (contacts / options / signals only).
 					{
 						displayName: 'Reveal Emails',
 						name: 'bulkRevealEmails',
@@ -1261,7 +1178,7 @@ export class Lusha implements INodeType {
 							{ displayName: 'Last Name', name: 'lastName', type: 'string', default: '', placeholder: 'Doe' },
 							{ displayName: 'Company Name', name: 'companyName', type: 'string', default: '', placeholder: 'Acme Inc' },
 							{ displayName: 'Company Domain', name: 'companyDomain', type: 'string', default: '', placeholder: 'acme.com' },
-							{ displayName: 'Lusha ID', name: 'lushaId', type: 'string', default: '', description: 'Lusha entity ID from a previous search or enrich result' },
+							{ displayName: 'Lusha ID', name: 'lushaId', type: 'string', default: '', placeholder: 'v1.AbCdEfGh…', description: 'Lusha entity ID from a previous search or enrich result' },
 							{ displayName: 'Client Reference ID', name: 'clientReferenceId', type: 'string', default: '', description: 'Your own reference ID, returned in the response for correlation' },
 						],
 					},
@@ -1405,7 +1322,8 @@ export class Lusha implements INodeType {
 								name: 'id',
 								type: 'string',
 								default: '',
-								description: 'Lusha company ID',
+								placeholder: 'v1.AbCdEfGh…',
+								description: 'Lusha company ID, from a previous search result (results[].id)',
 							},
 							{
 								displayName: 'Company Name',
@@ -1450,14 +1368,34 @@ export class Lusha implements INodeType {
 						displayName: 'Signal Types',
 						name: 'signalTypes',
 						type: 'multiOptions',
+						// Values must match the V3CompanySignalsDto enum exactly.
+						// Company signals are a different vocabulary from contact
+						// signals (promotion / companyChange) — do not reuse those here.
 						options: [
 							{ name: 'All Signals', value: 'allSignals' },
-							{ name: 'Hiring', value: 'hiring' },
-							{ name: 'Technology Change', value: 'technologyChange' },
-							{ name: 'New Funding', value: 'newFunding' },
-							{ name: 'Leadership Change', value: 'leadershipChange' },
-							{ name: 'Company Growth', value: 'companyGrowth' },
-							{ name: 'News Mention', value: 'newsMention' },
+							{ name: 'Headcount Increase (1m)', value: 'headcountIncrease1m' },
+							{ name: 'Headcount Increase (3m)', value: 'headcountIncrease3m' },
+							{ name: 'Headcount Increase (6m)', value: 'headcountIncrease6m' },
+							{ name: 'Headcount Increase (12m)', value: 'headcountIncrease12m' },
+							{ name: 'Headcount Decrease (1m)', value: 'headcountDecrease1m' },
+							{ name: 'Headcount Decrease (3m)', value: 'headcountDecrease3m' },
+							{ name: 'Headcount Decrease (6m)', value: 'headcountDecrease6m' },
+							{ name: 'Headcount Decrease (12m)', value: 'headcountDecrease12m' },
+							{ name: 'Surge in Hiring', value: 'surgeInHiring' },
+							{ name: 'Surge in Hiring by Department', value: 'surgeInHiringByDepartment' },
+							{ name: 'Surge in Hiring by Location', value: 'surgeInHiringByLocation' },
+							{ name: 'IT Spend Increase', value: 'itSpendIncrease' },
+							{ name: 'IT Spend Decrease', value: 'itSpendDecrease' },
+							{ name: 'Website Traffic Increase', value: 'websiteTrafficIncrease' },
+							{ name: 'Website Traffic Decrease', value: 'websiteTrafficDecrease' },
+							{ name: 'LinkedIn Activity Intent', value: 'linkedinActivityIntent' },
+							{ name: 'News — Commercial Activity', value: 'commercialActivityNews' },
+							{ name: 'News — Corporate Strategy', value: 'corporateStrategyNews' },
+							{ name: 'News — Financial Events', value: 'financialEventsNews' },
+							{ name: 'News — Market Intelligence', value: 'marketIntelligenceNews' },
+							{ name: 'News — People', value: 'peopleNews' },
+							{ name: 'News — Product Activity', value: 'productActivityNews' },
+							{ name: 'News — Risk', value: 'riskNews' },
 						],
 						default: [],
 						description: 'Narrow results to companies with recent signal activity',
@@ -1470,13 +1408,8 @@ export class Lusha implements INodeType {
 						placeholder: '2025-01-01',
 						description: 'Only include signals on or after this date (YYYY-MM-DD)',
 					},
-					{
-						displayName: 'Max Results Per Signal',
-						name: 'maxResultsPerSignal',
-						type: 'number',
-						default: 0,
-						description: 'Maximum number of results per signal type (0 = no limit)',
-					},
+					// No Max Results Per Signal here: V3CompanySignalsDto accepts only
+					// types + startDate. maxResultsPerSignal is contacts-only.
 				],
 			},
 
@@ -1499,21 +1432,7 @@ export class Lusha implements INodeType {
 				displayName: 'Company Countries',
 				name: 'companyCountries',
 				type: 'multiOptions',
-				options: [
-					{ name: 'United States', value: 'United States' },
-					{ name: 'India', value: 'India' },
-					{ name: 'United Kingdom', value: 'United Kingdom' },
-					{ name: 'Brazil', value: 'Brazil' },
-					{ name: 'Canada', value: 'Canada' },
-					{ name: 'Australia', value: 'Australia' },
-					{ name: 'France', value: 'France' },
-					{ name: 'Germany', value: 'Germany' },
-					{ name: 'Netherlands', value: 'Netherlands' },
-					{ name: 'Italy', value: 'Italy' },
-					{ name: 'South Africa', value: 'South Africa' },
-					{ name: 'Mexico', value: 'Mexico' },
-					{ name: 'Other Countries...', value: '' }, // Add more as needed
-				],
+				typeOptions: { loadOptionsMethod: 'getCompanyCountries' },
 				default: [],
 				displayOptions: {
 					show: {
@@ -1591,28 +1510,7 @@ export class Lusha implements INodeType {
 				displayName: 'Main Industry',
 				name: 'companyMainIndustryIds',
 				type: 'multiOptions',
-				options: [
-					{ name: 'Hospitality', value: '1' },
-					{ name: 'Administrative & Support Services', value: '2' },
-					{ name: 'Construction', value: '3' },
-					{ name: 'Consumer Services', value: '4' },
-					{ name: 'Organizations', value: '5' },
-					{ name: 'Education', value: '6' },
-					{ name: 'Entertainment', value: '7' },
-					{ name: 'Farming, Ranching, Forestry', value: '8' },
-					{ name: 'Finance', value: '9' },
-					{ name: 'Government', value: '10' },
-					{ name: 'Hospitals, Healthcare & Clinics', value: '11' },
-					{ name: 'Manufacturing', value: '12' },
-					{ name: 'Oil, Gas & Mining', value: '13' },
-					{ name: 'Business Services', value: '14' },
-					{ name: 'Real Estate', value: '15' },
-					{ name: 'Retail', value: '16' },
-					{ name: 'Technology, Information & Media', value: '17' },
-					{ name: 'Transportation, Logistics, Supply Chain & Storage', value: '18' },
-					{ name: 'Utilities', value: '19' },
-					{ name: 'Wholesale', value: '20' },
-				],
+				typeOptions: { loadOptionsMethod: 'getMainIndustries' },
 				default: [],
 				description: 'Filter by main industry',
 			},
@@ -1620,165 +1518,7 @@ export class Lusha implements INodeType {
 				displayName: 'Sub-Industries',
 				name: 'companySubIndustryIds',
 				type: 'multiOptions',
-				options: [
-					// Hospitality
-					{ name: 'Restaurants', value: '2' },
-					{ name: 'Food & Beverage Services', value: '1' },
-					{ name: 'Hotels & Motels', value: '3' },
-					// Administrative & Support Services
-					{ name: 'Administrative & Support Services', value: '4' },
-					{ name: 'Events Services', value: '5' },
-					{ name: 'Facilities Services', value: '6' },
-					{ name: 'Fundraising', value: '7' },
-					{ name: 'Security & Investigations', value: '8' },
-					{ name: 'Staffing & Recruiting', value: '9' },
-					{ name: 'Translation & Localization', value: '10' },
-					{ name: 'Travel Arrangements', value: '11' },
-					{ name: 'Writing & Editing', value: '12' },
-					// Construction
-					{ name: 'Construction', value: '13' },
-					{ name: 'Building Construction', value: '15' },
-					{ name: 'Civil Engineering', value: '16' },
-					// Consumer Services
-					{ name: 'Personal Care Services', value: '17' },
-					{ name: 'Philanthropic Fundraising Services', value: '18' },
-					{ name: 'Repair & Maintenance', value: '19' },
-					// Organizations
-					{ name: 'Political Organizations', value: '20' },
-					{ name: 'Civic & Social Organizations', value: '21' },
-					{ name: 'Religious Institutions', value: '22' },
-					// Education
-					{ name: 'E-Learning Providers', value: '23' },
-					{ name: 'Higher Education', value: '24' },
-					{ name: 'Primary & Secondary Education', value: '25' },
-					{ name: 'Training', value: '26' },
-					{ name: 'Schools', value: '27' },
-					// Entertainment
-					{ name: 'Entertainment Providers', value: '28' },
-					{ name: 'Museums, Historical Sites, & Zoos', value: '29' },
-					{ name: 'Musicians, Artists & Writers', value: '30' },
-					{ name: 'Performing Arts', value: '31' },
-					{ name: 'Sports', value: '32' },
-					{ name: 'Recreational Facilities', value: '33' },
-					{ name: 'Gambling Facilities & Casinos', value: '34' },
-					{ name: 'Wellness & Fitness Services', value: '35' },
-					// Farming
-					{ name: 'Farming, Ranching, Forestry', value: '36' },
-					// Finance
-					{ name: 'Financial Services', value: '37' },
-					{ name: 'Capital Markets', value: '38' },
-					{ name: 'Investment Banking', value: '39' },
-					{ name: 'Investment Management', value: '40' },
-					{ name: 'Venture Capital & Private Equity', value: '41' },
-					{ name: 'Banking', value: '42' },
-					{ name: 'International Trade & Development', value: '43' },
-					{ name: 'Insurance', value: '44' },
-					// Government
-					{ name: 'Government Administration', value: '45' },
-					{ name: 'Administration of Justice', value: '46' },
-					{ name: 'Fire Protection', value: '47' },
-					{ name: 'Law Enforcement', value: '48' },
-					{ name: 'Public Safety', value: '49' },
-					{ name: 'Education Administration Programs', value: '50' },
-					{ name: 'Health & Human Services', value: '51' },
-					{ name: 'Housing & Community Development', value: '52' },
-					{ name: 'Military', value: '53' },
-					{ name: 'International Affairs', value: '54' },
-					{ name: 'Public Policy Offices', value: '55' },
-					{ name: 'Executive Offices', value: '56' },
-					{ name: 'Legislative Offices', value: '57' },
-					{ name: 'Government Relations Services', value: '58' },
-					// Healthcare
-					{ name: 'Hospitals & Healthcare', value: '59' },
-					{ name: 'Community Services', value: '60' },
-					{ name: 'Individual & Family Services', value: '61' },
-					{ name: 'Alternative Medicine', value: '62' },
-					{ name: 'Home Health Care Services', value: '63' },
-					{ name: 'Mental Health Care', value: '64' },
-					{ name: 'Medical Practices', value: '65' },
-					{ name: 'Nursing Homes & Residential Care', value: '66' },
-					// Manufacturing
-					{ name: 'Apparel', value: '67' },
-					{ name: 'Appliances, Electrical, & Electronics', value: '68' },
-					{ name: 'Chemicals & Related Products', value: '69' },
-					{ name: 'Personal Care Products', value: '70' },
-					{ name: 'Pharmaceuticals', value: '71' },
-					{ name: 'Computer Equipment & Electronics', value: '72' },
-					{ name: 'Computer Hardware', value: '73' },
-					{ name: 'Semiconductor & Renewable Energy', value: '74' },
-					{ name: 'Fabricated Metal Products', value: '75' },
-					{ name: 'Food & Beverage', value: '76' },
-					{ name: 'Furniture', value: '77' },
-					{ name: 'Glass, Ceramics, Clay & Concrete', value: '78' },
-					{ name: 'Industrial Machinery & Equipment', value: '79' },
-					{ name: 'Medical Equipment', value: '80' },
-					{ name: 'Paper & Forest Product', value: '81' },
-					{ name: 'Plastics & Rubber Products', value: '82' },
-					{ name: 'Sporting Goods', value: '83' },
-					{ name: 'Textile', value: '84' },
-					{ name: 'Tobacco', value: '85' },
-					{ name: 'Aerospace & Defense', value: '86' },
-					{ name: 'Motor Vehicles', value: '87' },
-					{ name: 'Railroad Equipment', value: '88' },
-					{ name: 'Shipbuilding', value: '89' },
-					// Oil, Gas & Mining
-					{ name: 'Mining', value: '90' },
-					{ name: 'Oil & Gas', value: '91' },
-					// Business Services
-					{ name: 'Accounting & Services', value: '92' },
-					{ name: 'Advertising & Marketing Services', value: '93' },
-					{ name: 'Public Relations & Communications', value: '94' },
-					{ name: 'Market Research Services', value: '95' },
-					{ name: 'Architecture & Planning', value: '96' },
-					{ name: 'Business Consulting & Services', value: '97' },
-					{ name: 'Environmental Services', value: '98' },
-					{ name: 'Human Resources Services', value: '99' },
-					{ name: 'Outsourcing & Offshoring Consulting', value: '100' },
-					{ name: 'Design Services', value: '101' },
-					{ name: 'IT Consulting & IT Services', value: '103' },
-					{ name: 'Law Firms & Legal Services', value: '104' },
-					{ name: 'Photography Services', value: '105' },
-					{ name: 'Biotechnology Research Services', value: '106' },
-					{ name: 'Research Services', value: '107' },
-					{ name: 'Veterinary Services', value: '108' },
-					// Real Estate
-					{ name: 'Real Estate', value: '109' },
-					// Retail
-					{ name: 'Retail Luxury Goods & Jewelry', value: '110' },
-					{ name: 'Food & Beverage Retail', value: '111' },
-					{ name: 'Grocery Retail', value: '112' },
-					{ name: 'Retail Apparel & Fashion', value: '113' },
-					{ name: 'Retail Office Equipment', value: '114' },
-					{ name: 'Retail', value: '115' },
-					// Technology, Information & Media
-					{ name: 'Book & Newspaper Publishing', value: '116' },
-					{ name: 'Broadcast Media Production & Distribution', value: '117' },
-					{ name: 'Movies, Videos & Sound', value: '118' },
-					{ name: 'Telecommunications', value: '119' },
-					{ name: 'Data Infrastructure & Analytics', value: '120' },
-					{ name: 'Blockchain Services', value: '121' },
-					{ name: 'Information Services', value: '122' },
-					{ name: 'Internet Publishing', value: '123' },
-					{ name: 'Internet Shop & Marketplace', value: '124' },
-					{ name: 'Social Networking Platforms', value: '125' },
-					{ name: 'Computer & Mobile Games', value: '126' },
-					{ name: 'Computer Networking Products', value: '127' },
-					{ name: 'Computer & Network Security Services', value: '128' },
-					{ name: 'Software Development', value: '129' },
-					// Transportation
-					{ name: 'Airlines, Airports & Air Services', value: '130' },
-					{ name: 'Freight & Package Transportation', value: '131' },
-					{ name: 'Ground Passenger Transportation', value: '132' },
-					{ name: 'Maritime Transportation', value: '133' },
-					{ name: 'Truck Transportation', value: '134' },
-					{ name: 'Warehousing & Storage', value: '135' },
-					// Utilities
-					{ name: 'Utilities', value: '136' },
-					// Wholesale
-					{ name: 'Wholesale', value: '137' },
-					{ name: 'Wholesale Building Materials', value: '138' },
-					{ name: 'Wholesale Import & Export', value: '139' },
-				],
+				typeOptions: { loadOptionsMethod: 'getSubIndustries' },
 				default: [],
 				description: 'Filter by sub-industries',
 			},
@@ -1826,21 +1566,8 @@ export class Lusha implements INodeType {
 		]
 	},
 			// ===== COMPANY ENRICH FROM SEARCH FIELDS =====
-			{
-				displayName: 'Request ID',
-				name: 'companyRequestId',
-				type: 'string',
-				default: '={{ $json.requestId }}',
-				required: true,
-				displayOptions: {
-					show: {
-						resource: ['company'],
-						operation: ['enrichFromSearch'],
-					},
-				},
-				description: 'The request ID from a previous company search operation (auto-populated if connected to a search node)',
-				hint: 'Connect this node to a Search Companies node to auto-populate',
-			},
+			// Note: POST /v3/companies/enrich takes only ids/reveal/tableId.
+			// It does NOT accept a requestId, so no such field is collected here.
 			{
 				displayName: 'Company Selection',
 				name: 'companySelectionType',
@@ -1958,6 +1685,14 @@ export class Lusha implements INodeType {
 						placeholder: 'competitor.com, other.com',
 						description: 'Comma-separated company domains to exclude from results',
 					},
+					{
+						displayName: 'Exclude LinkedIn URLs',
+						name: 'excludeLinkedinUrls',
+						type: 'string',
+						default: '',
+						placeholder: 'https://www.linkedin.com/company/acme',
+						description: 'Comma-separated company LinkedIn URLs to exclude from results',
+					},
 				],
 			},
 
@@ -1985,6 +1720,40 @@ export class Lusha implements INodeType {
 						operation: ['enrichBulk'],
 					},
 				},
+			},
+			// Extra company data points. V3CompaniesEnrichRequest.reveal gates all of
+			// these behind an explicit opt-in — without it the response carries only the
+			// base firmographics, so none of this was reachable through the node before.
+			// Each selected field is charged separately per result.
+			{
+				displayName: 'Reveal Additional Data',
+				name: 'companyReveal',
+				type: 'multiOptions',
+				options: [
+					{ name: 'Competitors', value: 'competitors' },
+					{ name: 'Employees by Department', value: 'employeesByDepartment' },
+					{ name: 'Employees by Location', value: 'employeesByLocation' },
+					{ name: 'Employees by Seniority', value: 'employeesBySeniority' },
+					{ name: 'Estimated Annual IT Spend', value: 'estimatedAnnualItSpend' },
+					{ name: 'Intent Topics', value: 'intent' },
+					{ name: 'Monthly Website Traffic', value: 'monthlyWebsiteTraffic' },
+					{ name: 'Open Jobs — by Department', value: 'openJobsByDepartment' },
+					{ name: 'Open Jobs — by Location', value: 'openJobsByLocation' },
+					{ name: 'Open Jobs — by Seniority', value: 'openJobsBySeniority' },
+					{ name: 'Open Jobs — Total', value: 'openJobsTotal' },
+				],
+				default: [],
+				displayOptions: {
+					show: {
+						resource: ['company'],
+						// /v3/companies/search-and-enrich has no `reveal` field of its own
+						// (unlike the contacts variant) -- when this is set on Search and
+						// Enrich, the node resolves IDs via search first, then makes a
+						// second call to /v3/companies/enrich with these fields.
+						operation: ['enrichBulk', 'enrichFromSearch', 'searchAndEnrich'],
+					},
+				},
+				description: 'Optional extra fields to unlock on each company. Each one is charged separately per result, so select only what you need.',
 			},
 			// Simple bulk fields for companies
 			{
@@ -2055,18 +1824,73 @@ export class Lusha implements INodeType {
 				typeOptions: { multipleValues: true },
 				default: {},
 				displayOptions: { show: { resource: ['company'], operation: ['searchAndEnrich'] } },
-				description: 'List of companies to search and enrich (up to 100). Fill whichever identifier you have — Lusha ID takes priority, then domain, LinkedIn URL, then name.',
+				description: 'List of companies to search and enrich (up to 100). Fill whichever identifier you have — Lusha ID takes priority, then domain, then name.',
 				options: [
 					{
 						name: 'company',
 						displayName: 'Company',
+						// V3CompanySearchItem accepts only clientReferenceId / id / name / domain.
+						// There is deliberately no LinkedIn URL field: company search does not
+						// support it, so offering it would build an unmatchable request item.
 						values: [
 							{ displayName: 'Domain', name: 'domain', type: 'string', default: '', placeholder: 'acme.com' },
 							{ displayName: 'Company Name', name: 'name', type: 'string', default: '', placeholder: 'Acme Inc' },
-							{ displayName: 'LinkedIn URL', name: 'linkedinUrl', type: 'string', default: '', placeholder: 'https://www.linkedin.com/company/acme' },
-							{ displayName: 'Lusha ID', name: 'lushaId', type: 'string', default: '', description: 'Lusha entity ID from a previous search or enrich result' },
+							{ displayName: 'Lusha ID', name: 'lushaId', type: 'string', default: '', placeholder: 'v1.AbCdEfGh…', description: 'Lusha entity ID from a previous search or enrich result' },
 							{ displayName: 'Client Reference ID', name: 'clientReferenceId', type: 'string', default: '', description: 'Your own reference ID, returned in the response for correlation' },
 						],
+					},
+				],
+			},
+
+			// Remaining documented request-body fields.
+			{
+				displayName: 'Table ID',
+				name: 'tableId',
+				type: 'string',
+				default: '',
+				placeholder: '482910',
+				displayOptions: {
+					show: {
+						resource: ['contact', 'company'],
+						operation: ['enrichBulk', 'enrichFromSearch', 'prospectingContacts', 'prospectingCompanies', 'searchLookalikes'],
+					},
+				},
+				description: 'Optional. Also persist these results into an existing Lusha table, populating the relevant columns. Leave blank to skip.',
+			},
+			{
+				displayName: 'Data Waterfall',
+				name: 'waterfallEnabled',
+				type: 'boolean',
+				default: true,
+				displayOptions: {
+					show: {
+						resource: ['contact'],
+						operation: ['enrichBulk', 'enrichFromSearch'],
+					},
+				},
+				description: 'Whether this call may fall through to your enabled third-party providers when Lusha has no match. Defaults to on whenever Data Waterfall is enabled on your account; turn off to opt this call out. No effect if the waterfall is off account-wide.',
+			},
+			{
+				displayName: 'Options',
+				name: 'searchAndEnrichOptions',
+				type: 'collection',
+				placeholder: 'Add option',
+				default: {},
+				displayOptions: {
+					show: {
+						// Company Search and Enrich (/v3/companies/search-and-enrich) accepts
+						// this field but does not act on it -- Contact Search and Enrich does.
+						resource: ['contact'],
+						operation: ['searchAndEnrich'],
+					},
+				},
+				options: [
+					{
+						displayName: 'Include Partial Profiles',
+						name: 'includePartialProfiles',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to include profiles where only partial data is available',
 					},
 				],
 			},
@@ -2089,15 +1913,42 @@ export class Lusha implements INodeType {
 						displayName: 'Page',
 						name: 'page',
 						type: 'number',
+						typeOptions: { minValue: 0, maxValue: 1000 },
 						default: 0,
-						description: 'Page number for pagination (starts at 0)',
+						description: 'Page number for pagination (0–1000, starts at 0)',
 					},
 					{
 						displayName: 'Page Size',
 						name: 'pageSize',
 						type: 'number',
-						default: 50,
-						description: 'Number of results per page (max 50)',
+						typeOptions: { minValue: 10, maxValue: 100 },
+						default: 25,
+						description: 'Number of results per page. The API accepts 10–100; values outside that range are clamped.',
+					},
+					// Prospecting request `options` block. Distinct from the search-only
+					// Options collection: these apply to the prospecting endpoints and were
+					// previously unreachable.
+					{
+						displayName: 'Include Partial Profiles',
+						name: 'includePartialProfiles',
+						type: 'boolean',
+						default: true,
+						description: 'Whether to include profiles where only partial data is available',
+					},
+					{
+						displayName: 'Exclude Do-Not-Call',
+						name: 'excludeDnc',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to exclude contacts flagged do-not-call. Contact prospecting only.',
+					},
+					{
+						displayName: 'Max Contacts Per Company',
+						name: 'maxContactsPerCompany',
+						type: 'number',
+						typeOptions: { minValue: 1, maxValue: 20 },
+						default: 0,
+						description: 'Cap how many contacts are returned per company (1–20). This is not the page size — Page Size still controls that. Leave at 0 for uncapped. Contact prospecting only.',
 					},
 					{
 						displayName: 'Search Text',
@@ -2108,23 +1959,61 @@ export class Lusha implements INodeType {
 						placeholder: 'sales automation SaaS',
 					},
 					{
-						displayName: 'Signal Types',
+						displayName: 'Signal Types (Contacts)',
 						name: 'signalNames',
 						type: 'multiOptions',
+						// Contact signal vocabulary. Company signals use a different, much
+						// larger enum (see Signal Types (Companies) below) -- sending these
+						// values on Prospect Companies gets "Invalid signal type" (400).
 						options: [
 							{ name: 'All Signals', value: 'allSignals' },
 							{ name: 'Promotion', value: 'promotion' },
 							{ name: 'Company Change', value: 'companyChange' },
 						],
 						default: [],
-						description: 'Narrow results to contacts with recent signal activity (charges extra credits per signal type). Applies to Contact Search only.',
+						description: 'Narrow results to contacts with recent signal activity (charges extra credits per signal type). Applies to Prospect Contacts only.',
+					},
+					{
+						displayName: 'Signal Types (Companies)',
+						name: 'companySignalNames',
+						type: 'multiOptions',
+						// Values must match the V3CompanySignalsDto enum exactly -- the same
+						// vocabulary used by searchCompaniesOptions.signalTypes.
+						options: [
+							{ name: 'All Signals', value: 'allSignals' },
+							{ name: 'Headcount Increase (1m)', value: 'headcountIncrease1m' },
+							{ name: 'Headcount Increase (3m)', value: 'headcountIncrease3m' },
+							{ name: 'Headcount Increase (6m)', value: 'headcountIncrease6m' },
+							{ name: 'Headcount Increase (12m)', value: 'headcountIncrease12m' },
+							{ name: 'Headcount Decrease (1m)', value: 'headcountDecrease1m' },
+							{ name: 'Headcount Decrease (3m)', value: 'headcountDecrease3m' },
+							{ name: 'Headcount Decrease (6m)', value: 'headcountDecrease6m' },
+							{ name: 'Headcount Decrease (12m)', value: 'headcountDecrease12m' },
+							{ name: 'Surge in Hiring', value: 'surgeInHiring' },
+							{ name: 'Surge in Hiring by Department', value: 'surgeInHiringByDepartment' },
+							{ name: 'Surge in Hiring by Location', value: 'surgeInHiringByLocation' },
+							{ name: 'IT Spend Increase', value: 'itSpendIncrease' },
+							{ name: 'IT Spend Decrease', value: 'itSpendDecrease' },
+							{ name: 'Website Traffic Increase', value: 'websiteTrafficIncrease' },
+							{ name: 'Website Traffic Decrease', value: 'websiteTrafficDecrease' },
+							{ name: 'LinkedIn Activity Intent', value: 'linkedinActivityIntent' },
+							{ name: 'News — Commercial Activity', value: 'commercialActivityNews' },
+							{ name: 'News — Corporate Strategy', value: 'corporateStrategyNews' },
+							{ name: 'News — Financial Events', value: 'financialEventsNews' },
+							{ name: 'News — Market Intelligence', value: 'marketIntelligenceNews' },
+							{ name: 'News — People', value: 'peopleNews' },
+							{ name: 'News — Product Activity', value: 'productActivityNews' },
+							{ name: 'News — Risk', value: 'riskNews' },
+						],
+						default: [],
+						description: 'Narrow results to companies with recent signal activity (charges extra credits per signal type). Applies to Prospect Companies only.',
 					},
 					{
 						displayName: 'Signal Start Date',
 						name: 'signalStartDate',
 						type: 'string',
 						default: '',
-						description: 'Only include signals on or after this date (YYYY-MM-DD). Defaults to last 6 months when blank. Applies to Contact Search only.',
+						description: 'Only include signals on or after this date (YYYY-MM-DD). Defaults to last 6 months when blank. Applies to Prospect Contacts and Prospect Companies.',
 						placeholder: '2025-01-01',
 					},
 				],
@@ -2132,14 +2021,98 @@ export class Lusha implements INodeType {
 		],
 	};
 
+	// Filter vocabularies are fetched from Lusha's own discovery endpoints so they
+	// cannot go stale. Every method falls back to the generated static list when the
+	// call fails, so the editor still works without credentials or network access.
+	methods = {
+		loadOptions: {
+			async getMainIndustries(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const rows = await fetchCatalog(this, '/v3/companies/prospecting/filters/industriesLabels');
+				if (!rows) return getMainIndustryOptions();
+				const mapped = rows
+					.filter((r: IDataObject) => r.main_industry_id !== undefined)
+					.map((r: IDataObject) => ({ name: String(r.main_industry), value: String(r.main_industry_id) }));
+				// A row shape the API returns but this mapping doesn't recognize (e.g. no
+				// main_industry_id) would otherwise filter every row away silently.
+				return mapped.length > 0 ? mapped : getMainIndustryOptions();
+			},
+
+			async getSubIndustries(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const rows = await fetchCatalog(this, '/v3/companies/prospecting/filters/industriesLabels');
+				if (!rows) return getSubIndustryOptions();
+				// Flatten parent -> children, then parent-qualify any label that occurs
+				// under more than one parent (notably "Other", which repeats ~15 times).
+				const flat: Array<{ id: string; label: string; parent: string }> = [];
+				rows.forEach((m: IDataObject) => {
+					((m.sub_industries as IDataObject[]) ?? []).forEach((s) => {
+						flat.push({ id: String(s.id), label: String(s.value), parent: String(m.main_industry) });
+					});
+				});
+				const freq: Record<string, number> = {};
+				flat.forEach((s) => (freq[s.label] = (freq[s.label] ?? 0) + 1));
+				const seen = new Set<string>();
+				return flat
+					.filter((s) => (seen.has(s.id) ? false : (seen.add(s.id), true)))
+					.map((s) => ({ name: freq[s.label] > 1 ? `${s.parent}: ${s.label}` : s.label, value: s.id }));
+			},
+
+			async getContactCountries(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const rows = await fetchCatalog(this, '/v3/contacts/prospecting/filters/countries');
+				if (!rows) return getContactCountryOptions();
+				// filters.contacts.include.countries takes ISO-2 codes only.
+				return rows.map((r: IDataObject) => ({
+					name: String(r.name ?? r.code),
+					value: String(r.code ?? r.name),
+				}));
+			},
+
+			async getCompanyCountries(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const rows = await fetchCatalog(this, '/v3/contacts/prospecting/filters/countries');
+				if (!rows) return getCompanyCountryOptions();
+				// V3Location.country takes the full country name, never the ISO-2 code.
+				return rows.map((r: IDataObject) => {
+					const name = String(r.name ?? r.code);
+					return { name, value: name };
+				});
+			},
+
+			async getDepartments(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const rows = await fetchCatalog(this, '/v3/contacts/prospecting/filters/departments');
+				if (!rows) return getDepartmentOptions();
+				return rows.map((r: unknown) => {
+					const v = typeof r === 'string' ? r : String((r as IDataObject).value ?? (r as IDataObject).name);
+					return { name: v, value: v };
+				});
+			},
+
+			async getSeniorities(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const rows = await fetchCatalog(this, '/v3/contacts/prospecting/filters/seniority');
+				if (!rows) return getSeniorityOptions();
+				// seniorityIds must be integers. The catalog returns lowercase names, so
+				// prefer our own casing for known IDs and title-case anything new.
+				return rows.map((r: IDataObject) => ({
+					name: SENIORITY_LABELS[String(r.id)] ?? titleCaseLabel(String(r.name ?? r.id)),
+					value: Number(r.id),
+				}));
+			},
+		},
+	};
+
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
-		const resource = this.getNodeParameter('resource', 0) as string;
-		const operation = this.getNodeParameter('operation', 0) as string;
 
 		for (let i = 0; i < items.length; i++) {
 			try {
+				// Read per item, not once at index 0: Resource and Operation can be driven
+				// by expressions, and hoisting them applied item 0's choice to every item.
+				const resource = this.getNodeParameter('resource', i) as string;
+				const operation = this.getNodeParameter('operation', i) as string;
+
+				// Populated by the two-step bulk-enrich flow so the caller can see how
+				// many identifiers actually resolved and which ones did not.
+				let bulkEnrichContext: IDataObject | undefined;
+
 				let requestOptions: IHttpRequestOptions = {
 					baseURL: 'https://api.lusha.com',
 					url: '',
@@ -2213,13 +2186,24 @@ export class Lusha implements INodeType {
 								});
 							}
 
-							if (contacts.length === 0) throw new Error('Search Contacts: provide at least one Email, LinkedIn URL, or Lusha ID.');
+							if (contacts.length === 0) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'Search Contacts: provide at least one Email, LinkedIn URL, or Lusha ID.',
+									{ itemIndex: i },
+								);
+							}
 
-							const searchContactsBody: IDataObject = { contacts };
+							const searchContactsBody: IDataObject = { contacts: contacts.slice(0, 100) };
 
 							const searchContactsOptions = this.getNodeParameter('searchContactsOptions', i, {}) as IDataObject;
-							if (searchContactsOptions.includePartialProfiles) {
-								searchContactsBody.options = { includePartialProfiles: true };
+							// Send the explicit boolean whenever the user touched this option --
+							// `if (x)` alone can't distinguish "explicitly turned off" from
+							// "never set", and the API defaults to true when the field is absent.
+							if (searchContactsOptions.includePartialProfiles !== undefined) {
+								searchContactsBody.options = {
+									includePartialProfiles: searchContactsOptions.includePartialProfiles as boolean,
+								};
 							}
 
 							const contactSignalTypes = (searchContactsOptions.signalTypes as string[]) ?? [];
@@ -2243,12 +2227,15 @@ export class Lusha implements INodeType {
 							delete requestOptions.qs;
 
 							const page = this.getNodeParameter('searchAdditionalOptions.page', i, 0) as number;
-							const pageSize = this.getNodeParameter('searchAdditionalOptions.pageSize', i, 50) as number;
+							const pageSize = this.getNodeParameter('searchAdditionalOptions.pageSize', i, 25) as number;
 
 							const contactSearchBody: IDataObject = {
 								pagination: {
-									page,
-									size: Math.min(pageSize, 50),
+									page: clampPage(page),
+									// V3PaginationRequest.size must be 10–100. The previous
+									// Math.min(pageSize, 50) let sub-10 values through (a 400)
+									// and capped the page at half of what the API allows.
+									size: clampPageSize(pageSize),
 								},
 								filters: {
 									contacts: { include: {} },
@@ -2314,12 +2301,17 @@ export class Lusha implements INodeType {
 								contactInclude.locations = locations;
 							}
 
-							// Add existing data points
+							// Add existing data points. existingDataPointsCondition is only
+							// meaningful alongside them, so it is not sent on its own.
 							const existingDataPoints = this.getNodeParameter('contactSearchFilters.existingDataPoints', i, []) as string[];
 							if (existingDataPoints.length) {
 								const contactInclude = ((contactSearchBody.filters as IDataObject)
 									.contacts as IDataObject).include as IDataObject;
 								contactInclude.existingDataPoints = existingDataPoints;
+								const edpCondition = this.getNodeParameter('contactSearchFilters.existingDataPointsCondition', i, '') as string;
+								if (edpCondition && existingDataPoints.length > 1) {
+									contactInclude.existingDataPointsCondition = edpCondition;
+								}
 							}
 
 							// Add company filters (names/domains)
@@ -2373,18 +2365,23 @@ export class Lusha implements INodeType {
 								}];
 							}
 
-							// Add company countries
+							// Company country / state / city all collapse into a single
+							// locations[] array. V3CompanyFilterCriteria has NO `countries`
+							// field (that exists only on the contact criteria), so the old
+							// `companiesInclude.countries = [...]` was rejected outright with
+							// "property countries should not exist".
+							//
+							// The key is `country` with a FULL country name. Verified against
+							// the live API: `countryIso2` is rejected by companies/prospecting
+							// and, worse, accepted by contacts/prospecting while matching
+							// nothing — so the option values here are full names, not ISO-2.
 							const companyCountries = this.getNodeParameter('contactSearchFilters.contactSearchCompanyCountries', i, []) as string[];
-							if (companyCountries.length) {
-								const companiesInclude = ((contactSearchBody.filters as IDataObject)
-									.companies as IDataObject).include as IDataObject;
-								companiesInclude.countries = companyCountries;
-							}
-
-							// Add company locations
 							const companyStates = this.getNodeParameter('contactSearchFilters.contactSearchCompanyStates', i, '') as string;
 							const companyCities = this.getNodeParameter('contactSearchFilters.contactSearchCompanyCities', i, '') as string;
 							const companyLocations: IDataObject[] = [];
+							companyCountries.filter((c) => c).forEach((country) => {
+								companyLocations.push({ country });
+							});
 							if (companyStates) {
 								companyStates.split(',').map((s) => s.trim()).filter((s) => s).forEach((state) => {
 									companyLocations.push({ state });
@@ -2434,33 +2431,103 @@ export class Lusha implements INodeType {
 								}
 							}
 
-							// Add SIC codes
+							// Add SIC codes. The field is `sicCodes`, not `sicsCodes` —
+							// the old spelling matched nothing in V3CompanyFilterCriteria.
 							const sicsCodes = this.getNodeParameter('contactSearchFilters.contactSearchSicsCodes', i, '') as string;
 							if (sicsCodes) {
 								const sicsList = sicsCodes.split(',').map((c) => c.trim()).filter((c) => c);
 								if (sicsList.length) {
 									const companiesInclude = ((contactSearchBody.filters as IDataObject)
 										.companies as IDataObject).include as IDataObject;
-									companiesInclude.sicsCodes = sicsList;
+									companiesInclude.sicCodes = sicsList;
 								}
 							}
 
-							// Add searchText
+							// searchText and signals belong inside filters.contacts.include —
+							// V3ProspectingContactsRequest only has pagination/filters/tableId/options,
+							// so setting them at the top level meant they were never applied.
 							const searchText = this.getNodeParameter('searchAdditionalOptions.searchText', i, '') as string;
 							if (searchText) {
-								(contactSearchBody as IDataObject).searchText = searchText;
+								const contactInclude = ((contactSearchBody.filters as IDataObject)
+									.contacts as IDataObject).include as IDataObject;
+								contactInclude.searchText = searchText;
 							}
 
-							// Add signals
 							const signalNames = this.getNodeParameter('searchAdditionalOptions.signalNames', i, []) as string[];
 							if (signalNames.length) {
 								const signalStartDate = this.getNodeParameter('searchAdditionalOptions.signalStartDate', i, '') as string;
 								const signalFilter: IDataObject = { types: signalNames };
 								if (signalStartDate) signalFilter.startDate = signalStartDate;
-								(contactSearchBody as IDataObject).signals = signalFilter;
+								const contactInclude = ((contactSearchBody.filters as IDataObject)
+									.contacts as IDataObject).include as IDataObject;
+								contactInclude.signals = signalFilter;
 							}
 
-							requestOptions.body = contactSearchBody;
+							// Remaining documented filter fields, contact and company side.
+							const contactAdvanced = this.getNodeParameter('contactAdvancedFilters', i, {}) as IDataObject;
+							if (Object.keys(contactAdvanced).length) {
+								const contactInclude = ((contactSearchBody.filters as IDataObject)
+									.contacts as IDataObject).include as IDataObject;
+								applyContactAdvancedFilters(contactAdvanced, contactInclude);
+							}
+							const companyAdvancedOnContacts = this.getNodeParameter('companyAdvancedFilters', i, {}) as IDataObject;
+							if (Object.keys(companyAdvancedOnContacts).length) {
+								const companiesInclude = ((contactSearchBody.filters as IDataObject)
+									.companies as IDataObject).include as IDataObject;
+								applyCompanyAdvancedFilters(companyAdvancedOnContacts, companiesInclude, 'contactsProspecting');
+							}
+
+							applyGeographicFilters(
+								{
+									contactGeo: this.getNodeParameter('contactGeographicDetails', i, {}) as IDataObject,
+									companyGeo: this.getNodeParameter('companyGeographicDetails', i, {}) as IDataObject,
+									locationsZip: this.getNodeParameter('companyLocationsZipcodes', i, {}) as IDataObject,
+									hqZip: this.getNodeParameter('companyHeadquarterZipcodes', i, {}) as IDataObject,
+								},
+								((contactSearchBody.filters as IDataObject).contacts as IDataObject).include as IDataObject,
+								((contactSearchBody.filters as IDataObject).companies as IDataObject).include as IDataObject,
+							);
+
+							applyFundingRows(
+								{
+									ranges: this.getNodeParameter('companyFundingRanges', i, {}) as IDataObject,
+									rounds: this.getNodeParameter('companyFundingRounds', i, {}) as IDataObject,
+									names: this.getNodeParameter('companyFundingNames', i, {}) as IDataObject,
+								},
+								((contactSearchBody.filters as IDataObject).companies as IDataObject).include as IDataObject,
+							);
+
+							if (pruneEmptyFilterBlocks(contactSearchBody.filters as IDataObject) === 0) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'Prospect Contacts: set at least one filter (job title, department, seniority, country, or a company filter) before running.',
+									{ itemIndex: i },
+								);
+							}
+
+							// V3ProspectingContactsRequest.options.
+							// Read the collection as a whole rather than via dotted paths:
+							// getNodeParameter throws "Could not get parameter" for a key the
+							// user has not added to a collection unless a concrete fallback is
+							// supplied, and `undefined` does not count as one.
+							const prospectOptions = this.getNodeParameter('searchAdditionalOptions', i, {}) as IDataObject;
+							const contactProspectOptions: IDataObject = {};
+							if (prospectOptions.includePartialProfiles !== undefined) {
+								contactProspectOptions.includePartialProfiles = prospectOptions.includePartialProfiles as boolean;
+							}
+							if (prospectOptions.excludeDnc !== undefined) {
+								contactProspectOptions.excludeDnc = prospectOptions.excludeDnc as boolean;
+							}
+							// 0 means uncapped; the API accepts 1-20 only, so omit it otherwise.
+							const cpMaxPerCompany = Number(prospectOptions.maxContactsPerCompany ?? 0);
+							if (Number.isFinite(cpMaxPerCompany) && cpMaxPerCompany >= 1) {
+								contactProspectOptions.maxContactsPerCompany = Math.min(20, Math.floor(cpMaxPerCompany));
+							}
+							if (Object.keys(contactProspectOptions).length) {
+								contactSearchBody.options = contactProspectOptions;
+							}
+
+							requestOptions.body = withTableId(contactSearchBody, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 
@@ -2484,7 +2551,15 @@ export class Lusha implements INodeType {
 								} else {
 									const items: any[] = (searchData.results ?? searchData.data ?? []) as any[];
 									contactIds = items
-										.filter((c: any) => Array.isArray(c.canReveal) && c.canReveal.length > 0)
+										// A contact already fully revealed still carries `canReveal`
+										// entries, just with `credits: 0` -- checking presence alone
+										// (rather than an unrevealed field's actual credit cost)
+										// re-enriches people who were already enriched.
+										.filter(
+											(c: any) =>
+												Array.isArray(c.canReveal) &&
+												c.canReveal.some((r: any) => Number(r?.credits ?? 0) > 0),
+										)
 										.map((c: any) => c.id || c.contactId)
 										.filter(Boolean);
 								}
@@ -2494,7 +2569,11 @@ export class Lusha implements INodeType {
 							}
 
 							if (!contactIds.length) {
-								throw new Error('No contact IDs found. Ensure the search operation returned results.');
+								throw new NodeOperationError(
+									this.getNode(),
+									'No contact IDs found. Ensure the search operation returned results.',
+									{ itemIndex: i },
+								);
 							}
 
 							requestOptions.url = '/v3/contacts/enrich';
@@ -2503,7 +2582,15 @@ export class Lusha implements INodeType {
 							requestOptions.headers['Content-Type'] = 'application/json';
 							delete requestOptions.qs;
 
-							requestOptions.body = { ids: contactIds, reveal: ['emails', 'phones'] };
+							// Honour the Reveal selection instead of always billing for both.
+							const efsReveal = this.getNodeParameter('enrichFromSearchReveal', i, ['emails', 'phones']) as string[];
+							// waterfallEnabled defaults to true server-side, so only send the opt-out.
+							const efsWaterfall = this.getNodeParameter('waterfallEnabled', i, true) as boolean;
+							requestOptions.body = withTableId({
+								ids: contactIds.map((id) => String(id)).slice(0, 100),
+								reveal: efsReveal.length ? efsReveal : ['emails', 'phones'],
+								...(efsWaterfall === false ? { waterfallEnabled: false } : {}),
+							}, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 
@@ -2512,7 +2599,6 @@ export class Lusha implements INodeType {
 
 							let bulkContacts: IDataObject[] = [];
 							const bulkReveal: string[] = [];
-							let bulkFilterBy = '';
 
 							if (bulkType === 'emailList') {
 								const emailListRaw = this.getNodeParameter('bulkEmailList', i, '') as string;
@@ -2520,17 +2606,32 @@ export class Lusha implements INodeType {
 									.split(',')
 									.map((e) => e.trim())
 									.filter((e) => e);
-								if (emails.length === 0) throw new Error('Email Addresses field is empty.');
+								if (emails.length === 0) {
+									throw new NodeOperationError(this.getNode(), 'Email Addresses field is empty.', { itemIndex: i });
+								}
 								bulkContacts = emails.map((email, idx) => ({
 									clientReferenceId: String(idx + 1),
 									email,
 								}));
-								const bulkRevealEmails = this.getNodeParameter('contactBulkAdditionalOptions.bulkRevealEmails', i, false) as boolean;
-								const bulkRevealPhones = this.getNodeParameter('contactBulkAdditionalOptions.bulkRevealPhones', i, false) as boolean;
-								bulkFilterBy = this.getNodeParameter('contactBulkAdditionalOptions.bulkFilterBy', i, '') as string;
+								const bulkRevealOptionsEmailList = this.getNodeParameter('contactBulkAdditionalOptions', i, {}) as IDataObject;
+								const bulkRevealEmails = bulkRevealOptionsEmailList.bulkRevealEmails as boolean | undefined;
+								const bulkRevealPhones = bulkRevealOptionsEmailList.bulkRevealPhones as boolean | undefined;
 								if (bulkRevealEmails) bulkReveal.push('emails');
 								if (bulkRevealPhones) bulkReveal.push('phones');
-								if (bulkReveal.length === 0) bulkReveal.push('emails', 'phones');
+								if (bulkReveal.length === 0) {
+									// Both explicitly turned off is a deliberate "reveal nothing" --
+									// defaulting to both here billed the user for reveals they just
+									// turned off. Neither touched (both undefined) still defaults to
+									// both, matching the pre-existing "just enrich everything" case.
+									if (bulkRevealEmails === false && bulkRevealPhones === false) {
+										throw new NodeOperationError(
+											this.getNode(),
+											'Bulk Enrich Contacts: Reveal Emails and Reveal Phones are both turned off, so there is nothing to enrich. Turn at least one on.',
+											{ itemIndex: i },
+										);
+									}
+									bulkReveal.push('emails', 'phones');
+								}
 							} else if (bulkType === 'simple') {
 								const contactsList = this.getNodeParameter('contactsList', i, {}) as IDataObject;
 								const contacts: IDataObject[] = [];
@@ -2560,27 +2661,26 @@ export class Lusha implements INodeType {
 									});
 								}
 
-								const bulkRevealEmails = this.getNodeParameter(
-									'contactBulkAdditionalOptions.bulkRevealEmails',
-									i,
-									false,
-								) as boolean;
-
-								const bulkRevealPhones = this.getNodeParameter(
-									'contactBulkAdditionalOptions.bulkRevealPhones',
-									i,
-									false,
-								) as boolean;
-
-								bulkFilterBy = this.getNodeParameter(
-									'contactBulkAdditionalOptions.bulkFilterBy',
-									i,
-									'',
-								) as string;
+								const bulkRevealOptionsSimple = this.getNodeParameter('contactBulkAdditionalOptions', i, {}) as IDataObject;
+								const bulkRevealEmails = bulkRevealOptionsSimple.bulkRevealEmails as boolean | undefined;
+								const bulkRevealPhones = bulkRevealOptionsSimple.bulkRevealPhones as boolean | undefined;
 
 								if (bulkRevealEmails) bulkReveal.push('emails');
 								if (bulkRevealPhones) bulkReveal.push('phones');
-								if (bulkReveal.length === 0) bulkReveal.push('emails', 'phones');
+								if (bulkReveal.length === 0) {
+									// Both explicitly turned off is a deliberate "reveal nothing" --
+									// defaulting to both here billed the user for reveals they just
+									// turned off. Neither touched (both undefined) still defaults to
+									// both, matching the pre-existing "just enrich everything" case.
+									if (bulkRevealEmails === false && bulkRevealPhones === false) {
+										throw new NodeOperationError(
+											this.getNode(),
+											'Bulk Enrich Contacts: Reveal Emails and Reveal Phones are both turned off, so there is nothing to enrich. Turn at least one on.',
+											{ itemIndex: i },
+										);
+									}
+									bulkReveal.push('emails', 'phones');
+								}
 
 								bulkContacts = contacts;
 							} else {
@@ -2594,20 +2694,22 @@ export class Lusha implements INodeType {
 								try {
 									payload = JSON.parse(payloadRaw);
 								} catch (e) {
-									throw new Error('Contacts Payload (JSON) must be valid JSON.');
+									throw new NodeOperationError(this.getNode(), 'Contacts Payload (JSON) must be valid JSON.', { itemIndex: i });
 								}
 
 								bulkContacts = (payload.contacts as IDataObject[]) ?? [];
 								const payloadReveal = (payload.reveal as string[]) ?? [];
 								bulkReveal.push(...(payloadReveal.length ? payloadReveal : ['emails', 'phones']));
-								if (payload.filterBy) bulkFilterBy = String(payload.filterBy);
 							}
 
-							if (!bulkContacts.length) throw new Error('No contacts provided for bulk enrichment.');
+							if (!bulkContacts.length) {
+								throw new NodeOperationError(this.getNode(), 'No contacts provided for bulk enrichment.', { itemIndex: i });
+							}
 
-							// Step 1: resolve raw identifiers (emails, LinkedIn URLs, names+company) to Lusha contact IDs
-							const bulkSearchBody: IDataObject = { contacts: bulkContacts };
-							if (bulkFilterBy) bulkSearchBody.filterBy = bulkFilterBy;
+							// Step 1: resolve raw identifiers (emails, LinkedIn URLs, names+company)
+							// to Lusha contact IDs. `filterBy` is deliberately not sent — it was a
+							// v2 parameter and is not part of V3ContactsSearchRequest.
+							const bulkSearchBody: IDataObject = { contacts: bulkContacts.slice(0, 100) };
 
 							const bulkSearchResponse = (await this.helpers.httpRequestWithAuthentication.call(this, 'lushaApi', {
 								baseURL: 'https://api.lusha.com',
@@ -2623,11 +2725,56 @@ export class Lusha implements INodeType {
 							})) as any;
 
 							const bulkSearchResults: any[] = bulkSearchResponse.results ?? bulkSearchResponse.data ?? [];
-							const bulkContactIds = bulkSearchResults
-								.map((item: any) => item.id || item.contactId)
-								.filter(Boolean);
 
-							if (!bulkContactIds.length) throw new Error('No contacts matched during search; nothing to enrich.');
+							// Search returns only the contacts it could match, and the previous
+							// code just collected every id it happened to return — so inputs
+							// that matched nothing disappeared with no signal to the caller.
+							// Correlate on clientReferenceId so we can report exactly which
+							// identifiers resolved and which did not.
+							const bulkMatched: IDataObject[] = [];
+							const bulkUnmatched: IDataObject[] = [];
+							const bulkResultsByRef = new Map<string, any>();
+							for (const r of bulkSearchResults) {
+								if (r?.clientReferenceId !== undefined && r?.clientReferenceId !== null) {
+									bulkResultsByRef.set(String(r.clientReferenceId), r);
+								}
+							}
+
+							for (const requested of bulkContacts.slice(0, 100)) {
+								const ref = requested.clientReferenceId !== undefined ? String(requested.clientReferenceId) : '';
+								const match = ref ? bulkResultsByRef.get(ref) : undefined;
+								const matchedId = match ? (match.id ?? match.contactId) : undefined;
+								if (matchedId) {
+									bulkMatched.push({ clientReferenceId: ref, id: String(matchedId) });
+								} else {
+									bulkUnmatched.push(requested);
+								}
+							}
+
+							// If the API returned results without echoing clientReferenceId, fall
+							// back to taking every id it did return rather than losing them all.
+							if (!bulkMatched.length && bulkSearchResults.length) {
+								for (const r of bulkSearchResults) {
+									const id = r?.id ?? r?.contactId;
+									if (id) bulkMatched.push({ clientReferenceId: String(r?.clientReferenceId ?? ''), id: String(id) });
+								}
+							}
+
+							if (!bulkMatched.length) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'No contacts matched during search; nothing to enrich.',
+									{ itemIndex: i },
+								);
+							}
+
+							// Surface the drop-outs instead of letting them vanish.
+							bulkEnrichContext = {
+								requested: bulkContacts.slice(0, 100).length,
+								matched: bulkMatched.length,
+								unmatched: bulkUnmatched,
+								searchRequestId: bulkSearchResponse?.requestId,
+							};
 
 							// Step 2: enrich the resolved IDs
 							requestOptions.url = '/v3/contacts/enrich';
@@ -2635,7 +2782,12 @@ export class Lusha implements INodeType {
 							if (!requestOptions.headers) requestOptions.headers = {};
 							requestOptions.headers['Content-Type'] = 'application/json';
 							delete requestOptions.qs;
-							requestOptions.body = { ids: bulkContactIds, reveal: bulkReveal };
+							const bulkWaterfall = this.getNodeParameter('waterfallEnabled', i, true) as boolean;
+							requestOptions.body = withTableId({
+								ids: bulkMatched.map((m) => m.id as string),
+								reveal: bulkReveal,
+								...(bulkWaterfall === false ? { waterfallEnabled: false } : {}),
+							}, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 					case 'searchAndEnrich': {
@@ -2676,12 +2828,25 @@ export class Lusha implements INodeType {
 								});
 							}
 
-							if (seContactList.length === 0) throw new Error('Add at least one contact to the Contacts list.');
+							if (seContactList.length === 0) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'Add at least one contact to the Contacts list.',
+									{ itemIndex: i },
+								);
+							}
 
 							const seReveal = this.getNodeParameter('searchAndEnrichReveal', i, ['emails', 'phones']) as string[];
 							if (seReveal.length === 0) seReveal.push('emails', 'phones');
 
-							requestOptions.body = { contacts: seContactList, reveal: seReveal };
+							const seOptions = this.getNodeParameter('searchAndEnrichOptions', i, {}) as IDataObject;
+							requestOptions.body = {
+								contacts: seContactList.slice(0, 100),
+								reveal: seReveal,
+								...(seOptions.includePartialProfiles !== undefined
+									? { options: { includePartialProfiles: seOptions.includePartialProfiles as boolean } }
+									: {}),
+							};
 							break;
 						}
 					case 'searchLookalikes': {
@@ -2697,6 +2862,8 @@ export class Lusha implements INodeType {
 							const limit = this.getNodeParameter('contactLookalikeLimit', i, 25) as number;
 							const dedupeSessionId = this.getNodeParameter('contactLookalikeOptions.dedupeSessionId', i, '') as string;
 							const excludeEmails = this.getNodeParameter('contactLookalikeOptions.excludeEmails', i, '') as string;
+							const excludeLinkedinUrls = this.getNodeParameter('contactLookalikeOptions.excludeLinkedinUrls', i, '') as string;
+							const excludeContactIds = this.getNodeParameter('contactLookalikeOptions.excludeIds', i, '') as string;
 
 							const splitSeedVals = (items: IDataObject[]) =>
 								items.flatMap((s: any) => s.value ? String(s.value).split(',').map((v: string) => v.trim()).filter((v: string) => v) : []);
@@ -2707,7 +2874,10 @@ export class Lusha implements INodeType {
 							} else if (seedType === 'linkedinUrls') {
 								seeds.linkedinUrls = splitSeedVals(seedItems);
 							} else if (seedType === 'contactIds') {
-								seeds.contactIds = splitSeedVals(seedItems).map(Number).filter(Boolean);
+								// Use `ids` (strings), the preferred form. The legacy `contactIds`
+								// field is numeric, and coercing through Number() both dropped a
+								// literal "0" id and risked precision loss on long Lusha IDs.
+								seeds.ids = splitSeedVals(seedItems);
 							} else if (seedType === 'nameAndCompany') {
 								seeds.contacts = seedItems
 									.filter((s: any) => s.firstName || s.lastName)
@@ -2722,15 +2892,35 @@ export class Lusha implements INodeType {
 									});
 							}
 
-							const body: IDataObject = { seeds, limit };
-							if (dedupeSessionId) body.dedupeSessionId = dedupeSessionId;
-							if (excludeEmails) {
-								body.exclude = {
-									emails: excludeEmails.split(',').map((e: string) => e.trim()).filter(Boolean),
-								};
+							// The endpoint requires 5–100 seeds. Fail here with a clear message
+							// rather than sending an empty seeds object and getting a bare 400.
+							const seedCount = Object.values(seeds).reduce<number>(
+								(n, v) => n + (Array.isArray(v) ? v.length : 0),
+								0,
+							);
+							if (seedCount < 5) {
+								throw new NodeOperationError(
+									this.getNode(),
+									`Contact Lookalikes needs at least 5 seeds (got ${seedCount}). Add more seed rows, or comma-separate several values in one row.`,
+									{ itemIndex: i },
+								);
 							}
 
-							requestOptions.body = body;
+							const body: IDataObject = { seeds, limit: Math.min(100, Math.max(1, limit)) };
+							if (dedupeSessionId) body.dedupeSessionId = dedupeSessionId;
+							const exclude: IDataObject = {};
+							if (excludeEmails) {
+								exclude.emails = excludeEmails.split(',').map((e: string) => e.trim()).filter(Boolean);
+							}
+							if (excludeLinkedinUrls) {
+								exclude.linkedinUrls = excludeLinkedinUrls.split(',').map((u: string) => u.trim()).filter(Boolean);
+							}
+							if (excludeContactIds) {
+								exclude.ids = excludeContactIds.split(',').map((id: string) => id.trim()).filter(Boolean);
+							}
+							if (Object.keys(exclude).length) body.exclude = exclude;
+
+							requestOptions.body = withTableId(body, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 					}
@@ -2797,18 +2987,32 @@ export class Lusha implements INodeType {
 								});
 							}
 
-							const searchCompaniesBody: IDataObject = { companies: companiesArr };
+							if (companiesArr.length === 0) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'Search Companies: provide at least one domain, company name, or Lusha ID.',
+									{ itemIndex: i },
+								);
+							}
+
+							const searchCompaniesBody: IDataObject = { companies: companiesArr.slice(0, 100) };
 
 							const searchCompaniesOptions = this.getNodeParameter('searchCompaniesOptions', i, {}) as IDataObject;
-							if (searchCompaniesOptions.includePartialProfiles) {
-								searchCompaniesBody.options = { includePartialProfiles: true };
+							// Send the explicit boolean whenever the user touched this option --
+							// `if (x)` alone can't distinguish "explicitly turned off" from
+							// "never set", and the API defaults to true when the field is absent.
+							if (searchCompaniesOptions.includePartialProfiles !== undefined) {
+								searchCompaniesBody.options = {
+									includePartialProfiles: searchCompaniesOptions.includePartialProfiles as boolean,
+								};
 							}
 
 							const companySignalTypes = (searchCompaniesOptions.signalTypes as string[]) ?? [];
 							if (companySignalTypes.length) {
+								// V3CompanySignalsDto accepts types + startDate only.
+								// maxResultsPerSignal is a contacts-only field and is not sent here.
 								const signalFilter: IDataObject = { types: companySignalTypes };
 								if (searchCompaniesOptions.signalStartDate) signalFilter.startDate = searchCompaniesOptions.signalStartDate;
-								if (searchCompaniesOptions.maxResultsPerSignal) signalFilter.maxResultsPerSignal = searchCompaniesOptions.maxResultsPerSignal;
 								searchCompaniesBody.signals = signalFilter;
 							}
 
@@ -2825,12 +3029,13 @@ export class Lusha implements INodeType {
 							delete requestOptions.qs;
 
 							const page = this.getNodeParameter('searchAdditionalOptions.page', i, 0) as number;
-							const pageSize = this.getNodeParameter('searchAdditionalOptions.pageSize', i, 50) as number;
+							const pageSize = this.getNodeParameter('searchAdditionalOptions.pageSize', i, 25) as number;
 
 							const companySearchBody: IDataObject = {
 								pagination: {
-									page,
-									size: Math.min(pageSize, 50),
+									page: clampPage(page),
+									// V3PaginationRequest.size must be 10–100.
+									size: clampPageSize(pageSize),
 								},
 								filters: {
 									companies: { include: {} },
@@ -2858,7 +3063,9 @@ export class Lusha implements INodeType {
 
 							const companyLocations: IDataObject[] = [];
 							if (companyCountries.length) {
-								companyCountries.forEach((country) => companyLocations.push({ country }));
+								// Filter blanks: the option list used to carry a placeholder entry
+								// with an empty value, which produced an invalid { country: "" }.
+								companyCountries.filter((c) => c).forEach((country) => companyLocations.push({ country }));
 							}
 							if (companyStates) {
 								companyStates.split(',').map((s) => s.trim()).filter((s) => s).forEach((state) => companyLocations.push({ state }));
@@ -2901,7 +3108,99 @@ export class Lusha implements INodeType {
 								}];
 							}
 
-							requestOptions.body = companySearchBody;
+							// Remaining documented company filter fields.
+							const companyAdvanced = this.getNodeParameter('companyAdvancedFilters', i, {}) as IDataObject;
+							if (Object.keys(companyAdvanced).length) {
+								applyCompanyAdvancedFilters(companyAdvanced, companiesInclude, 'companiesProspecting');
+							}
+
+							applyGeographicFilters(
+								{
+									companyGeo: this.getNodeParameter('companyGeographicDetails', i, {}) as IDataObject,
+									locationsZip: this.getNodeParameter('companyLocationsZipcodes', i, {}) as IDataObject,
+									hqZip: this.getNodeParameter('companyHeadquarterZipcodes', i, {}) as IDataObject,
+								},
+								null,
+								companiesInclude,
+							);
+
+							// No applyFundingRows here: companies/prospecting does not accept
+							// filters.companies.include.funding, so the rows are not offered.
+
+							// The Additional Options panel offers Search Text and the signal
+							// fields on this action too, and they were being collected and
+							// dropped. companies/prospecting takes both under
+							// filters.companies.include, the same place contacts/prospecting
+							// takes them under filters.contacts.include.
+							const companySearchText = this.getNodeParameter('searchAdditionalOptions.searchText', i, '') as string;
+							if (companySearchText) companiesInclude.searchText = companySearchText;
+
+							// Company signals are a different, much larger vocabulary than
+							// contact signals (promotion / companyChange) -- reusing the
+							// contact-side field here was sending values companies/prospecting
+							// answers with "Invalid signal type" (400).
+							const companySignalNames = this.getNodeParameter('searchAdditionalOptions.companySignalNames', i, []) as string[];
+							if (companySignalNames.length) {
+								const startDate = this.getNodeParameter('searchAdditionalOptions.signalStartDate', i, '') as string;
+								const signalFilter: IDataObject = { types: companySignalNames };
+								if (startDate) signalFilter.startDate = startDate;
+								companiesInclude.signals = signalFilter;
+							}
+
+							// Contact-side filters: find companies that employ certain kinds
+							// of people. V3ContactsOnCompanySearchFilters accepts only these
+							// six fields, nested under filters.contacts.include (a sibling of
+							// filters.companies, not inside it).
+							const companyProspectContactFilters = this.getNodeParameter(
+								'companyProspectContactFilters',
+								i,
+								{},
+							) as IDataObject;
+							const contactsIncludeOnCompanies: IDataObject = {};
+							const cpcJobTitles = String(companyProspectContactFilters.jobTitles ?? '');
+							if (cpcJobTitles) {
+								contactsIncludeOnCompanies.jobTitles = cpcJobTitles.split(',').map((s) => s.trim()).filter((s) => s);
+							}
+							const cpcDepartments = (companyProspectContactFilters.departments as string[]) ?? [];
+							if (cpcDepartments.length) contactsIncludeOnCompanies.departments = cpcDepartments;
+							const cpcSeniorities = (companyProspectContactFilters.seniorities as string[]) ?? [];
+							if (cpcSeniorities.length) {
+								contactsIncludeOnCompanies.seniorityIds = cpcSeniorities.map((id) => parseInt(id, 10));
+							}
+							const cpcSkills = String(companyProspectContactFilters.skills ?? '');
+							if (cpcSkills) {
+								contactsIncludeOnCompanies.skills = cpcSkills.split(',').map((s) => s.trim()).filter((s) => s);
+							}
+							const cpcExistingDataPoints = String(companyProspectContactFilters.existingDataPoints ?? '');
+							if (cpcExistingDataPoints) {
+								contactsIncludeOnCompanies.existingDataPoints = cpcExistingDataPoints
+									.split(',')
+									.map((s) => s.trim())
+									.filter((s) => s);
+							}
+							if (Object.keys(contactsIncludeOnCompanies).length) {
+								(companySearchBody.filters as IDataObject).contacts = { include: contactsIncludeOnCompanies };
+							}
+
+							if (pruneEmptyFilterBlocks(companySearchBody.filters as IDataObject) === 0) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'Prospect Companies: set at least one filter (name/domain, country, employee count, industry, or revenue) before running.',
+									{ itemIndex: i },
+								);
+							}
+
+							// V3ProspectingCompaniesRequest.options accepts only
+							// includePartialProfiles — excludeDnc and maxContactsPerCompany
+							// are contact-side fields and are deliberately not forwarded.
+							const companyProspectOptions = this.getNodeParameter('searchAdditionalOptions', i, {}) as IDataObject;
+							if (companyProspectOptions.includePartialProfiles !== undefined) {
+								companySearchBody.options = {
+									includePartialProfiles: companyProspectOptions.includePartialProfiles as boolean,
+								};
+							}
+
+							requestOptions.body = withTableId(companySearchBody, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 
@@ -2929,7 +3228,11 @@ export class Lusha implements INodeType {
 							}
 
 							if (!companiesIds.length) {
-								throw new Error('No company IDs found. Ensure the search operation returned results or provide company IDs.');
+								throw new NodeOperationError(
+									this.getNode(),
+									'No company IDs found. Ensure the search operation returned results or provide company IDs.',
+									{ itemIndex: i },
+								);
 							}
 
 							requestOptions.url = '/v3/companies/enrich';
@@ -2938,7 +3241,12 @@ export class Lusha implements INodeType {
 							requestOptions.headers['Content-Type'] = 'application/json';
 							delete requestOptions.qs;
 
-							requestOptions.body = { ids: companiesIds };
+							// V3CompaniesEnrichRequest.ids: strings, max 100.
+							const efsCompanyReveal = this.getNodeParameter('companyReveal', i, []) as string[];
+							requestOptions.body = withTableId({
+								ids: companiesIds.map((id) => String(id)).slice(0, 100),
+								...(efsCompanyReveal.length ? { reveal: efsCompanyReveal } : {}),
+							}, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 
@@ -2982,13 +3290,15 @@ export class Lusha implements INodeType {
 								try {
 									payload = JSON.parse(payloadRaw);
 								} catch (e) {
-									throw new Error('Companies Payload (JSON) must be valid JSON.');
+									throw new NodeOperationError(this.getNode(), 'Companies Payload (JSON) must be valid JSON.', { itemIndex: i });
 								}
 
 								bulkCompanies = (payload.companies as IDataObject[]) ?? [];
 							}
 
-							if (!bulkCompanies.length) throw new Error('No companies provided for bulk enrichment.');
+							if (!bulkCompanies.length) {
+								throw new NodeOperationError(this.getNode(), 'No companies provided for bulk enrichment.', { itemIndex: i });
+							}
 
 							// Step 1: resolve raw identifiers (domains, names) to Lusha company IDs
 							const bulkCompanySearchResponse = (await this.helpers.httpRequestWithAuthentication.call(this, 'lushaApi', {
@@ -3000,16 +3310,53 @@ export class Lusha implements INodeType {
 									'Content-Type': 'application/json',
 									prtnr: 'n8n_connector-prod',
 								},
-								body: { companies: bulkCompanies },
+								body: { companies: bulkCompanies.slice(0, 100) },
 								json: true,
 							})) as any;
 
 							const bulkCompanySearchResults: any[] = bulkCompanySearchResponse.results ?? bulkCompanySearchResponse.data ?? [];
-							const bulkCompanyIds = bulkCompanySearchResults
-								.map((item: any) => item.id || item.companyId)
-								.filter(Boolean);
 
-							if (!bulkCompanyIds.length) throw new Error('No companies matched during search; nothing to enrich.');
+							// Same as the contact flow: correlate on clientReferenceId so
+							// companies the search could not match are reported rather than
+							// silently dropped from the enrich call.
+							const bulkCompanyMatched: IDataObject[] = [];
+							const bulkCompanyUnmatched: IDataObject[] = [];
+							const bulkCompanyResultsByRef = new Map<string, any>();
+							for (const r of bulkCompanySearchResults) {
+								if (r?.clientReferenceId !== undefined && r?.clientReferenceId !== null) {
+									bulkCompanyResultsByRef.set(String(r.clientReferenceId), r);
+								}
+							}
+
+							for (const requested of bulkCompanies.slice(0, 100)) {
+								const ref = requested.clientReferenceId !== undefined ? String(requested.clientReferenceId) : '';
+								const match = ref ? bulkCompanyResultsByRef.get(ref) : undefined;
+								const matchedId = match ? (match.id ?? match.companyId) : undefined;
+								if (matchedId) bulkCompanyMatched.push({ clientReferenceId: ref, id: String(matchedId) });
+								else bulkCompanyUnmatched.push(requested);
+							}
+
+							if (!bulkCompanyMatched.length && bulkCompanySearchResults.length) {
+								for (const r of bulkCompanySearchResults) {
+									const id = r?.id ?? r?.companyId;
+									if (id) bulkCompanyMatched.push({ clientReferenceId: String(r?.clientReferenceId ?? ''), id: String(id) });
+								}
+							}
+
+							if (!bulkCompanyMatched.length) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'No companies matched during search; nothing to enrich.',
+									{ itemIndex: i },
+								);
+							}
+
+							bulkEnrichContext = {
+								requested: bulkCompanies.slice(0, 100).length,
+								matched: bulkCompanyMatched.length,
+								unmatched: bulkCompanyUnmatched,
+								searchRequestId: bulkCompanySearchResponse?.requestId,
+							};
 
 							// Step 2: enrich the resolved IDs
 							requestOptions.url = '/v3/companies/enrich';
@@ -3017,7 +3364,11 @@ export class Lusha implements INodeType {
 							if (!requestOptions.headers) requestOptions.headers = {};
 							requestOptions.headers['Content-Type'] = 'application/json';
 							delete requestOptions.qs;
-							requestOptions.body = { ids: bulkCompanyIds };
+							const bulkCompanyReveal = this.getNodeParameter('companyReveal', i, []) as string[];
+							requestOptions.body = withTableId({
+								ids: bulkCompanyMatched.map((m) => m.id as string),
+								...(bulkCompanyReveal.length ? { reveal: bulkCompanyReveal } : {}),
+							}, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 					case 'searchAndEnrich': {
@@ -3044,18 +3395,68 @@ export class Lusha implements INodeType {
 										lushaIds.forEach((id: string) => seCompanyList.push({ clientReferenceId: String(seCompanyList.length + 1), id }));
 									} else {
 										const entry: IDataObject = { clientReferenceId: item.clientReferenceId ? item.clientReferenceId : String(seCompanyList.length + 1) };
+										// No linkedinUrl branch: V3CompanySearchItem accepts only
+										// clientReferenceId / id / name / domain.
 										if (item.lushaId) entry.id = String(item.lushaId).trim();
 										else if (item.domain) entry.domain = String(item.domain).trim();
-										else if (item.linkedinUrl) entry.linkedinUrl = String(item.linkedinUrl).trim();
 										else if (item.name) entry.name = String(item.name).trim();
-										seCompanyList.push(entry);
+										// Skip rows that carry no usable identifier at all.
+										if (Object.keys(entry).length > 1) seCompanyList.push(entry);
 									}
 								});
 							}
 
-							if (seCompanyList.length === 0) throw new Error('Add at least one company to the Companies list.');
+							if (seCompanyList.length === 0) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'Add at least one company (domain, name, or Lusha ID) to the Companies list.',
+									{ itemIndex: i },
+								);
+							}
 
-							requestOptions.body = { companies: seCompanyList };
+							const seCompanyOptions = this.getNodeParameter('searchAndEnrichOptions', i, {}) as IDataObject;
+							const seCompanyReveal = this.getNodeParameter('companyReveal', i, []) as string[];
+							const seSearchBody: IDataObject = {
+								companies: seCompanyList.slice(0, 100),
+								...(seCompanyOptions.includePartialProfiles !== undefined
+									? { options: { includePartialProfiles: seCompanyOptions.includePartialProfiles as boolean } }
+									: {}),
+							};
+
+							if (seCompanyReveal.length === 0) {
+								requestOptions.body = seSearchBody;
+							} else {
+								// /v3/companies/search-and-enrich has no `reveal` field --
+								// competitors, employee breakdowns, intent, etc. only unlock
+								// through /v3/companies/enrich. Resolve IDs via search first,
+								// then enrich them with the requested fields.
+								const seSearchResponse = (await this.helpers.httpRequestWithAuthentication.call(this, 'lushaApi', {
+									baseURL: 'https://api.lusha.com',
+									url: '/v3/companies/search',
+									method: 'POST',
+									headers: {
+										Accept: 'application/json',
+										'Content-Type': 'application/json',
+										prtnr: 'n8n_connector-prod',
+									},
+									body: seSearchBody,
+									json: true,
+								})) as any;
+
+								const seSearchResults: any[] = seSearchResponse.results ?? seSearchResponse.data ?? [];
+								const seMatchedIds = seSearchResults.map((r: any) => r.id).filter(Boolean);
+
+								if (seMatchedIds.length === 0) {
+									throw new NodeOperationError(
+										this.getNode(),
+										'Search and Enrich Companies: no companies matched during search; nothing to enrich.',
+										{ itemIndex: i },
+									);
+								}
+
+								requestOptions.url = '/v3/companies/enrich';
+								requestOptions.body = { ids: seMatchedIds, reveal: seCompanyReveal };
+							}
 							break;
 						}
 					case 'searchLookalikes': {
@@ -3071,6 +3472,7 @@ export class Lusha implements INodeType {
 							const companyLimit = this.getNodeParameter('companyLookalikeLimit', i, 25) as number;
 							const companyDedupeId = this.getNodeParameter('companyLookalikeOptions.dedupeSessionId', i, '') as string;
 							const excludeDomains = this.getNodeParameter('companyLookalikeOptions.excludeDomains', i, '') as string;
+							const excludeCompanyLinkedinUrls = this.getNodeParameter('companyLookalikeOptions.excludeLinkedinUrls', i, '') as string;
 
 							const splitCompanySeedVals = (items: IDataObject[]) =>
 								items.flatMap((s: any) => s.value ? String(s.value).split(',').map((v: string) => v.trim()).filter((v: string) => v) : []);
@@ -3082,15 +3484,33 @@ export class Lusha implements INodeType {
 								companySeeds.linkedinUrls = splitCompanySeedVals(companySeedItems);
 							}
 
-							const companyBody: IDataObject = { seeds: companySeeds, limit: companyLimit };
-							if (companyDedupeId) companyBody.dedupeSessionId = companyDedupeId;
-							if (excludeDomains) {
-								companyBody.exclude = {
-									domains: excludeDomains.split(',').map((d: string) => d.trim()).filter(Boolean),
-								};
+							const companySeedCount = Object.values(companySeeds).reduce<number>(
+								(n, v) => n + (Array.isArray(v) ? v.length : 0),
+								0,
+							);
+							if (companySeedCount < 5) {
+								throw new NodeOperationError(
+									this.getNode(),
+									`Company Lookalikes needs at least 5 seeds (got ${companySeedCount}). Add more seed rows, or comma-separate several values in one row.`,
+									{ itemIndex: i },
+								);
 							}
 
-							requestOptions.body = companyBody;
+							const companyBody: IDataObject = {
+								seeds: companySeeds,
+								limit: Math.min(100, Math.max(1, companyLimit)),
+							};
+							if (companyDedupeId) companyBody.dedupeSessionId = companyDedupeId;
+							const companyExclude: IDataObject = {};
+							if (excludeDomains) {
+								companyExclude.domains = excludeDomains.split(',').map((d: string) => d.trim()).filter(Boolean);
+							}
+							if (excludeCompanyLinkedinUrls) {
+								companyExclude.linkedinUrls = excludeCompanyLinkedinUrls.split(',').map((u: string) => u.trim()).filter(Boolean);
+							}
+							if (Object.keys(companyExclude).length) companyBody.exclude = companyExclude;
+
+							requestOptions.body = withTableId(companyBody, this.getNodeParameter('tableId', i, '') as string);
 							break;
 						}
 					}
@@ -3123,9 +3543,14 @@ export class Lusha implements INodeType {
 							searchResponse.results = enrichedResults;
 
 							const allContactIds = enrichedResults.map((item: any) => item.id || item.contactId).filter(Boolean);
-							// v3 uses canReveal to indicate unrevealed contacts; fall back to all
+							// canReveal lists what Enrich can unlock, with a credit cost per
+							// field. credits === 0 means it is already revealed for this
+							// account, so "new" is a field that still costs something.
 							const newContactIds = enrichedResults
-								.filter((item: any) => Array.isArray(item.canReveal) && item.canReveal.length > 0)
+								.filter((item: any) =>
+									Array.isArray(item.canReveal) &&
+									item.canReveal.some((c: any) => Number(c?.credits ?? 0) > 0),
+								)
 								.map((item: any) => item.id || item.contactId)
 								.filter(Boolean);
 
@@ -3133,7 +3558,6 @@ export class Lusha implements INodeType {
 								...searchResponse,
 								allContactIds,
 								newContactIds,
-								visibleContactIds: allContactIds,
 							};
 						} else {
 							const allCompanyIds = resultItems.map((item: any) =>
@@ -3148,13 +3572,27 @@ export class Lusha implements INodeType {
 					}
 				}
 
+				// Report what the two-step bulk flow actually resolved, so identifiers
+				// that failed to match are visible instead of silently absent.
+				if (bulkEnrichContext) {
+					json = { ...json, lushaBulkEnrich: bulkEnrichContext };
+				}
+
 				returnData.push({
 					json,
 					pairedItem: { item: i },
 				});
 			} catch (error) {
-				if ((error as any)?.response?.status === 451 || (error as any)?.statusCode === 451) {
-					const gdprError = new Error('Request blocked (451): contact data is restricted in your region (GDPR).');
+				const err = error as any;
+				// n8n exposes the upstream status on different properties depending on
+				// which layer threw, so check all of them rather than just two.
+				const status = err?.httpCode ?? err?.statusCode ?? err?.response?.status ?? err?.cause?.response?.status;
+				if (String(status) === '451') {
+					const gdprError = new NodeOperationError(
+						this.getNode(),
+						'Request blocked (451): contact data is restricted in your region (GDPR).',
+						{ itemIndex: i },
+					);
 					if (this.continueOnFail()) {
 						returnData.push({ json: { error: gdprError.message }, pairedItem: { item: i } });
 						continue;
