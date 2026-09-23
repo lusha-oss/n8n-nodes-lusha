@@ -33,38 +33,69 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false  # never use caching in release builds
 
-      - name: Determine next version
+      # package.json is the single source of truth for the released version.
+      # Bump it in a PR; this workflow publishes exactly that version and tags
+      # the commit v<version>, so GitHub and npm can never drift apart.
+      - name: Resolve version from package.json
         id: version
         run: |
-          LATEST=$(git tag --list 'v*' --sort=-v:refname | head -n1)
-          if [ -z "$LATEST" ]; then
-            LATEST="v$(node -p "require('./package.json').version")"
-          fi
-          IFS='.' read -r major minor patch <<< "${LATEST#v}"
-          NEW_VERSION="${major}.${minor}.$((patch + 1))"
-          echo "new_version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
 
-      - name: Set package version
-        run: npm version "${{ steps.version.outputs.new_version }}" --no-git-tag-version
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::package.json version '$VERSION' is not valid semver."
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+          # Already on npm? Then this push carries no version bump - nothing to release.
+          if npm view "${NAME}@${VERSION}" version >/dev/null 2>&1; then
+            echo "::notice::${NAME}@${VERSION} is already published - skipping release."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # A tag for this version must not already point somewhere else.
+          if git rev-parse -q --verify "refs/tags/v${VERSION}" >/dev/null; then
+            echo "::error::Tag v${VERSION} already exists but ${NAME}@${VERSION} is not on npm. Resolve manually."
+            exit 1
+          fi
+
+          echo "should_publish=true" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
+        if: steps.version.outputs.should_publish == 'true'
         run: npm ci
 
       - name: Security audit
+        if: steps.version.outputs.should_publish == 'true'
         run: npm audit --audit-level=moderate || true
 
+      - name: Lint
+        if: steps.version.outputs.should_publish == 'true'
+        run: npm run lint
+
       - name: Build package (TypeScript + Gulp)
+        if: steps.version.outputs.should_publish == 'true'
         run: npm run build
 
+      - name: Test
+        if: steps.version.outputs.should_publish == 'true'
+        run: npm test
+
       - name: Publish package to npm
+        if: steps.version.outputs.should_publish == 'true'
         run: npm publish --access public
         # No NODE_AUTH_TOKEN needed - npm CLI auto-detects OIDC and uses trusted publishing
 
       - name: Create GitHub Release
+        if: steps.version.outputs.should_publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ steps.version.outputs.new_version }}" \
-            --title "v${{ steps.version.outputs.new_version }}" \
+          gh release create "v${{ steps.version.outputs.version }}" \
+            --title "v${{ steps.version.outputs.version }}" \
             --generate-notes \
             --target "${{ github.sha }}"
