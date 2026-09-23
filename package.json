@@ -26,6 +26,7 @@
   "bugs": {
     "url": "https://github.com/lusha-oss/n8n-nodes-lusha/issues"
   },
+  "homepage": "https://github.com/lusha-oss/n8n-nodes-lusha#readme",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
