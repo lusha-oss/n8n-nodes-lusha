@@ -36,7 +36,7 @@ In your n8n instance:
 
 1. Go to **Settings** > **Community Nodes**
 2. Click **Install a community node**
-3. Enter: `n8n-nodes-lusha`
+3. Enter: `@lusha-org/n8n-nodes-lusha`
 4. Click **Install**
 
 ### Manual Installation
@@ -159,7 +159,7 @@ Please be aware of Lusha's API rate limits:
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/n8n-nodes-lusha/issues)
+- **Issues**: [GitHub Issues](https://github.com/lusha-oss/n8n-nodes-lusha/issues)
 - **n8n Community**: [n8n Community Forum](https://community.n8n.io)
 - **Lusha API Docs**: [Lusha API Documentation](https://docs.lusha.com/apis)
 
